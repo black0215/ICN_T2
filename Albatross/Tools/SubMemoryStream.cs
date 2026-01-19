@@ -37,6 +37,19 @@ namespace Albatross.Tools
             BaseStream.Read(ByteContent, 0, ByteContent.Length);
         }
 
+        /// <summary>
+        /// Reads data from the stream without caching it in ByteContent.
+        /// This prevents the file from being marked as "modified" during read-only operations.
+        /// </summary>
+        /// <returns>Byte array containing the file data</returns>
+        public byte[] ReadWithoutCaching()
+        {
+            byte[] buffer = new byte[Size];
+            BaseStream.Seek(Offset, SeekOrigin.Begin);
+            BaseStream.Read(buffer, 0, buffer.Length);
+            return buffer;
+        }
+
         public void Seek()
         {
             BaseStream.Seek(Offset, SeekOrigin.Begin);

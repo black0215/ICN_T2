@@ -69,6 +69,9 @@ namespace Albatross.Forms.Characters
 
         private T2bþ OrgeTechnicnames;
 
+        private bool _isBattleTextModified = false;
+        private bool _isAddMemberTextModified = false;
+
         public CharaparamWindow(IGame game)
         {
             GameOpened = game;
@@ -319,9 +322,9 @@ namespace Albatross.Forms.Characters
                 HackslashCharaparams.AddRange(GameOpened.GetHackslashCharaparam());
                 HackslashAbilities.AddRange(GameOpened.GetHackslashAbilities());
                 HackslashTechnics.AddRange(GameOpened.GetHackslashSkills());
-                HackslashAbilitynames = new T2bþ(GameOpened.Files["hackslash_chara_ability_text"].File.Directory.GetFileFromFullPath(GameOpened.Files["hackslash_chara_ability_text"].Path));
+                HackslashAbilitynames = new T2bþ(GameOpened.Files["hackslash_chara_ability_text"].File.Directory.GetFileDataReadOnly(GameOpened.Files["hackslash_chara_ability_text"].Path));
                 LogTextFileLoad("hackslash_chara_ability_text", HackslashAbilitynames, "GameOpened.Files");
-                HackslashTechnicnames = new T2bþ(GameOpened.Files["hackslash_technic_text"].File.Directory.GetFileFromFullPath(GameOpened.Files["hackslash_technic_text"].Path));
+                HackslashTechnicnames = new T2bþ(GameOpened.Files["hackslash_technic_text"].File.Directory.GetFileDataReadOnly(GameOpened.Files["hackslash_technic_text"].Path));
                 LogTextFileLoad("hackslash_technic_text", HackslashTechnicnames, "GameOpened.Files");
                 attackAFlatComboBox.Items.AddRange(GetNames(HackslashTechnics.ToArray()).ToArray());
                 attackXFlatComboBox.Items.AddRange(attackAFlatComboBox.Items.Cast<Object>().ToArray());
@@ -331,7 +334,7 @@ namespace Albatross.Forms.Characters
             }
             else if (GameOpened.Name == "Yo-Kai Watch Blaster")
             {
-                OrgeTechnicnames = new T2bþ(GameOpened.Files["orgetime_technic"].File.Directory.GetFileFromFullPath(GameOpened.Files["orgetime_technic"].Path));
+                OrgeTechnicnames = new T2bþ(GameOpened.Files["orgetime_technic"].File.Directory.GetFileDataReadOnly(GameOpened.Files["orgetime_technic"].Path));
                 LogTextFileLoad("orgetime_technic", OrgeTechnicnames, "GameOpened.Files");
                 OrgetimeTechnics.AddRange(GameOpened.GetOrgetimeTechnics());
                 attackBlasterFlatComboBox.Items.AddRange(GetNames(OrgetimeTechnics.ToArray()).ToArray());
@@ -352,20 +355,20 @@ namespace Albatross.Forms.Characters
             ICharaevolve[] charaevolves = GameOpened.GetCharaevolution();
 
             // Get names
-            Itemnames = new T2bþ(GameOpened.Files["item_text"].File.Directory.GetFileFromFullPath(GameOpened.Files["item_text"].Path));
+            Itemnames = new T2bþ(GameOpened.Files["item_text"].File.Directory.GetFileDataReadOnly(GameOpened.Files["item_text"].Path));
             LogTextFileLoad("item_text", Itemnames, "GameOpened.Files");
-            Abilitynames = new T2bþ(GameOpened.Files["chara_ability_text"].File.Directory.GetFileFromFullPath(GameOpened.Files["chara_ability_text"].Path));
+            Abilitynames = new T2bþ(GameOpened.Files["chara_ability_text"].File.Directory.GetFileDataReadOnly(GameOpened.Files["chara_ability_text"].Path));
             LogTextFileLoad("chara_ability_text", Abilitynames, "GameOpened.Files");
-            Charanames = new T2bþ(GameOpened.Files["chara_text"].File.Directory.GetFileFromFullPath(GameOpened.Files["chara_text"].Path));
+            Charanames = new T2bþ(GameOpened.Files["chara_text"].File.Directory.GetFileDataReadOnly(GameOpened.Files["chara_text"].Path));
             LogTextFileLoad("chara_text", Charanames, "GameOpened.Files");
-            Addmembernames = new T2bþ(GameOpened.Files["addmembermenu_text"].File.Directory.GetFileFromFullPath(GameOpened.Files["addmembermenu_text"].Path));
+            Addmembernames = new T2bþ(GameOpened.Files["addmembermenu_text"].File.Directory.GetFileDataReadOnly(GameOpened.Files["addmembermenu_text"].Path));
             LogTextFileLoad("addmembermenu_text", Addmembernames, "GameOpened.Files");
 
             if (GameOpened.Name != "Yo-Kai Watch Blaster")
             {
-                Skillnames = new T2bþ(GameOpened.Files["skill_text"].File.Directory.GetFileFromFullPath(GameOpened.Files["skill_text"].Path));
+                Skillnames = new T2bþ(GameOpened.Files["skill_text"].File.Directory.GetFileDataReadOnly(GameOpened.Files["skill_text"].Path));
                 LogTextFileLoad("skill_text", Skillnames, "GameOpened.Files");
-                BattleCommandnames = new T2bþ(GameOpened.Files["battle_text"].File.Directory.GetFileFromFullPath(GameOpened.Files["battle_text"].Path));
+                BattleCommandnames = new T2bþ(GameOpened.Files["battle_text"].File.Directory.GetFileDataReadOnly(GameOpened.Files["battle_text"].Path));
                 LogTextFileLoad("battle_text", BattleCommandnames, "GameOpened.Files");
             }
 
@@ -583,7 +586,14 @@ namespace Albatross.Forms.Characters
                 // Assign values to charaevolve properties
                 charaevolve.ParamHash = charaparamWithEvolve.EvolveParam;
                 charaevolve.Level = charaparamWithEvolve.EvolveLevel;
-                charaevolve.Cost = charaparamWithEvolve.EvolveCost;
+
+                // [FIX] Only set Cost for games that support it (YW3, YWB)
+                // YW2 evolution data structure only has ParamHash and Level (2 fields)
+                if (GameOpened.Name != "Yo-Kai Watch 2")
+                {
+                    charaevolve.Cost = charaparamWithEvolve.EvolveCost;
+                }
+
                 charaparamWithEvolve.EvolveOffset = charaevolves.Count();
 
                 // Add charaevolve to the charaevolves list
@@ -591,17 +601,32 @@ namespace Albatross.Forms.Characters
             }
 
             // Save Charaparams and charaevolves arrays to the game
-            GameOpened.SaveCharaparam(Charaparams.ToArray());
-            GameOpened.SaveCharaevolution(charaevolves.ToArray());
+            // [FIX] For YW2, use combined save to prevent double-save corruption
+            if (GameOpened.Name == "Yo-Kai Watch 2")
+            {
+                // YW2 has a combined save method to prevent corruption
+                var yw2Game = GameOpened as Albatross.Yokai_Watch.Games.YW2.YW2;
+                yw2Game?.SaveCharaparamAndEvolution(Charaparams.ToArray(), charaevolves.ToArray());
+            }
+            else
+            {
+                // Other games use separate saves
+                GameOpened.SaveCharaparam(Charaparams.ToArray());
+                GameOpened.SaveCharaevolution(charaevolves.ToArray());
+            }
+
             GameOpened.SaveBattleCharaparam(BattleCharaparams.ToArray());
             GameOpened.SaveHackslashCharaparam(HackslashCharaparams.ToArray());
 
             // Save text files related to battle and member commands
-            if (BattleCommandnames != null)
+            if (BattleCommandnames != null && _isBattleTextModified)
             {
                 GameSupport.SaveTextFile(GameOpened.Files["battle_text"], BattleCommandnames);
             }
-            GameSupport.SaveTextFile(GameOpened.Files["addmembermenu_text"], Addmembernames);
+            if (_isAddMemberTextModified)
+            {
+                GameSupport.SaveTextFile(GameOpened.Files["addmembermenu_text"], Addmembernames);
+            }
         }
 
         private void InsertToolStripMenuItem_Click(object sender, EventArgs e)
@@ -766,8 +791,11 @@ namespace Albatross.Forms.Characters
 
                 try
                 {
-                    byte[] imageData = GameOpened.Files["face_icon"].File.Directory.GetFileFromFullPath(GameOpened.Files["face_icon"].Path + "/" + fileName + ".xi");
-                    facePictureBox.Image = IMGC.ToBitmap(imageData);
+                    if (GameOpened.Files.ContainsKey("face_icon"))
+                    {
+                        byte[] imageData = GameOpened.Files["face_icon"].File.Directory.GetFileDataReadOnly(GameOpened.Files["face_icon"].Path + "/" + fileName + ".xi");
+                        if (imageData != null) facePictureBox.Image = IMGC.ToBitmap(imageData);
+                    }
                 }
                 catch
                 {
@@ -1028,8 +1056,11 @@ namespace Albatross.Forms.Characters
 
                 try
                 {
-                    byte[] imageData = GameOpened.Files["face_icon"].File.Directory.GetFileFromFullPath(GameOpened.Files["face_icon"].Path + "/" + fileName + ".xi");
-                    facePictureBox.Image = IMGC.ToBitmap(imageData);
+                    if (GameOpened.Files.ContainsKey("face_icon"))
+                    {
+                        byte[] imageData = GameOpened.Files["face_icon"].File.Directory.GetFileDataReadOnly(GameOpened.Files["face_icon"].Path + "/" + fileName + ".xi");
+                        if (imageData != null) facePictureBox.Image = IMGC.ToBitmap(imageData);
+                    }
                 }
                 catch
                 {
@@ -1150,8 +1181,11 @@ namespace Albatross.Forms.Characters
 
                     try
                     {
-                        byte[] imageData = GameOpened.Files["face_icon"].File.Directory.GetFileFromFullPath(GameOpened.Files["face_icon"].Path + "/" + fileName + ".xi");
-                        evolutionPictureBox.Image = IMGC.ToBitmap(imageData);
+                        if (GameOpened.Files.ContainsKey("face_icon"))
+                        {
+                            byte[] imageData = GameOpened.Files["face_icon"].File.Directory.GetFileDataReadOnly(GameOpened.Files["face_icon"].Path + "/" + fileName + ".xi");
+                            if (imageData != null) evolutionPictureBox.Image = IMGC.ToBitmap(imageData);
+                        }
                     }
                     catch
                     {
@@ -1255,8 +1289,11 @@ namespace Albatross.Forms.Characters
                             break;
                     }
 
-                    byte[] imageData = GameOpened.Files["item_icon"].File.Directory.GetFileFromFullPath(GameOpened.Files["item_icon"].Path + "/" + fileName + ".xi");
-                    itemPictureBox1.Image = IMGC.ToBitmap(imageData);
+                    if (GameOpened.Files.ContainsKey("item_icon"))
+                    {
+                        byte[] imageData = GameOpened.Files["item_icon"].File.Directory.GetFileDataReadOnly(GameOpened.Files["item_icon"].Path + "/" + fileName + ".xi");
+                        if (imageData != null) itemPictureBox1.Image = IMGC.ToBitmap(imageData);
+                    }
                 }
                 catch
                 {
@@ -1328,8 +1365,11 @@ namespace Albatross.Forms.Characters
                             break;
                     }
 
-                    byte[] imageData = GameOpened.Files["item_icon"].File.Directory.GetFileFromFullPath(GameOpened.Files["item_icon"].Path + "/" + fileName + ".xi");
-                    itemPictureBox2.Image = IMGC.ToBitmap(imageData);
+                    if (GameOpened.Files.ContainsKey("item_icon"))
+                    {
+                        byte[] imageData = GameOpened.Files["item_icon"].File.Directory.GetFileDataReadOnly(GameOpened.Files["item_icon"].Path + "/" + fileName + ".xi");
+                        if (imageData != null) itemPictureBox2.Image = IMGC.ToBitmap(imageData);
+                    }
                 }
                 catch
                 {
@@ -1973,6 +2013,7 @@ namespace Albatross.Forms.Characters
         {
             Nyanko.Nyanko nyanko = new Nyanko.Nyanko(Path.GetFileName(GameOpened.Files["battle_text"].Path), BattleCommandnames, true, false, SelectedCharaparam.Quote1);
             nyanko.ShowDialog();
+            _isBattleTextModified = true;
             BattleCommandnames = nyanko.T2bþFileOpened;
 
             if (nyanko.SelectedHash != 0)
@@ -1995,6 +2036,7 @@ namespace Albatross.Forms.Characters
         {
             Nyanko.Nyanko nyanko = new Nyanko.Nyanko(Path.GetFileName(GameOpened.Files["battle_text"].Path), BattleCommandnames, true, false, SelectedCharaparam.Quote2);
             nyanko.ShowDialog();
+            _isBattleTextModified = true;
             BattleCommandnames = nyanko.T2bþFileOpened;
 
             if (nyanko.SelectedHash != 0)
@@ -2017,6 +2059,7 @@ namespace Albatross.Forms.Characters
         {
             Nyanko.Nyanko nyanko = new Nyanko.Nyanko(Path.GetFileName(GameOpened.Files["battle_text"].Path), BattleCommandnames, true, false, SelectedCharaparam.Quote3);
             nyanko.ShowDialog();
+            _isBattleTextModified = true;
             BattleCommandnames = nyanko.T2bþFileOpened;
 
             if (nyanko.SelectedHash != 0)
@@ -2039,6 +2082,7 @@ namespace Albatross.Forms.Characters
         {
             Nyanko.Nyanko nyanko = new Nyanko.Nyanko(Path.GetFileName(GameOpened.Files["battle_text"].Path), Addmembernames, true, false, SelectedCharaparam.BefriendQuote);
             nyanko.ShowDialog();
+            _isAddMemberTextModified = true;
             Addmembernames = nyanko.T2bþFileOpened;
 
             if (nyanko.SelectedHash != 0)

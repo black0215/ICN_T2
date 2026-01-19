@@ -17,19 +17,28 @@ namespace Albatross.Level5.Binary
 
         public Dictionary<int, string> Strings;
 
+        // [FIX] Store original data to preserve encoding when not modified
+        private byte[] OriginalData;
+        private bool IsModified;
+
         public CfgBin()
         {
             Entries = new List<Entry>();
             Strings = new Dictionary<int, string>();
             Encoding = Encoding.UTF8;
+            IsModified = false;
         }
 
         public void Open(byte[] data)
         {
+            // [FIX] Store original data for preservation
+            OriginalData = data;
+            IsModified = false;
+
             using (var reader = new BinaryDataReader(data))
             {
-                reader.Seek((uint)reader.Length - 0x0A);
-                Encoding = SetEncoding(reader.ReadValue<byte>());
+                // [리팩토링] t2b 풋터 읽기 로직 제거
+                // 대신 StringTable로부터 인코딩 자동 감지
 
                 reader.Seek(0x0);
                 var header = reader.ReadStruct<CfgBinSupport.Header>();
@@ -37,6 +46,10 @@ namespace Albatross.Level5.Binary
                 byte[] entriesBuffer = reader.GetSection(0x10, header.StringTableOffset);
 
                 byte[] stringTableBuffer = reader.GetSection((uint)header.StringTableOffset, header.StringTableLength);
+
+                // ✅ 인코딩 자동 감지
+                Encoding = EncodingDetector.Detect(stringTableBuffer);
+
                 Strings = ParseStrings(header.StringTableCount, stringTableBuffer);
 
                 long keyTableOffset = RoundUp(header.StringTableOffset + header.StringTableLength, 16);
@@ -53,8 +66,8 @@ namespace Albatross.Level5.Binary
         {
             using (var reader = new BinaryDataReader(stream))
             {
-                reader.Seek((uint)reader.Length - 0x0A);
-                Encoding = SetEncoding(reader.ReadValue<byte>());
+                // [리팩토링] t2b 풋터 읽기 로직 제거
+                // 대신 StringTable로부터 인코딩 자동 감지
 
                 reader.Seek(0x0);
                 var header = reader.ReadStruct<CfgBinSupport.Header>();
@@ -62,6 +75,10 @@ namespace Albatross.Level5.Binary
                 byte[] entriesBuffer = reader.GetSection(0x10, header.StringTableOffset);
 
                 byte[] stringTableBuffer = reader.GetSection((uint)header.StringTableOffset, header.StringTableLength);
+
+                // ✅ 인코딩 자동 감지
+                Encoding = EncodingDetector.Detect(stringTableBuffer);
+
                 Strings = ParseStrings(header.StringTableCount, stringTableBuffer);
 
                 long keyTableOffset = RoundUp(header.StringTableOffset + header.StringTableLength, 16);
@@ -110,8 +127,8 @@ namespace Albatross.Level5.Binary
 
                 writer.Write(EncodeKeyTable(uniqueKeysList));
 
-                writer.Write(new byte[5] { 0x01, 0x74, 0x32, 0x62, 0xFE });
-                writer.Write(new byte[4] { 0x01, GetEncoding(), 0x00, 0x01 });
+                // [리팩토링] t2b 풋터 제거
+                // 네이티브 포맷과 일치하도록 순수 데이터만 저장
                 writer.WriteAlignment();
 
                 writer.Seek(0);
@@ -121,6 +138,12 @@ namespace Albatross.Level5.Binary
 
         public byte[] Save()
         {
+            // [FIX] If not modified, return original data to preserve encoding
+            if (!IsModified && OriginalData != null)
+            {
+                return OriginalData;
+            }
+
             using (MemoryStream stream = new MemoryStream())
             {
                 BinaryDataWriter writer = new BinaryDataWriter(stream);
@@ -155,8 +178,8 @@ namespace Albatross.Level5.Binary
 
                 writer.Write(EncodeKeyTable(uniqueKeysList));
 
-                writer.Write(new byte[5] { 0x01, 0x74, 0x32, 0x62, 0xFE });
-                writer.Write(new byte[4] { 0x01, GetEncoding(), 0x00, 0x01 });
+                // [리팩토링] t2b 풋터 제거
+                // 네이티브 포맷과 일치하도록 순수 데이터만 저장
                 writer.WriteAlignment();
 
                 writer.Seek(0);
@@ -168,6 +191,9 @@ namespace Albatross.Level5.Binary
 
         public void ReplaceEntry(string entryName, Entry newEntry)
         {
+            // [FIX] Mark as modified when entries are replaced
+            IsModified = true;
+
             int entryIndex = Entries.FindIndex(x => x.GetName() == entryName);
 
             if (entryIndex >= 0)
@@ -182,6 +208,9 @@ namespace Albatross.Level5.Binary
 
         public void ReplaceEntry<T>(string entryBeginName, string entryName, T[] values) where T : class
         {
+            // [FIX] Mark as modified when entries are replaced
+            IsModified = true;
+
             Entry baseBegin = Entries.Where(x => x.GetName() == entryBeginName).FirstOrDefault();
             baseBegin.Variables[0].Value = values.Count();
             baseBegin.Children.Clear();
@@ -194,12 +223,8 @@ namespace Albatross.Level5.Binary
             }
         }
 
-        public byte GetEncoding()
-        {
-            return 1;
-        }
-
-        private Encoding SetEncoding(byte b) => Encoding.UTF8;
+        // [리팩토링] GetEncoding, SetEncoding 메서드 제거
+        // 더 이상 t2b 풋터를 사용하지 않으므로 불필요함
 
         private Dictionary<int, string> ParseStrings(int stringCount, byte[] stringTableBuffer)
         {
@@ -451,7 +476,8 @@ namespace Albatross.Level5.Binary
                             lastEntry.Children.Add(newItem);
                             stack.Add(newItem);
                             depth[name] = stack.Count;
-                        };
+                        }
+                        ;
                     }
                     else
                     {

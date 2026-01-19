@@ -161,6 +161,7 @@
     </Compile>
     <Compile Include="Tools\BinaryDataWriter.cs" />
     <Compile Include="Tools\Crc32.cs" />
+    <Compile Include="Tools\EncodingDetector.cs" />
     <Compile Include="Tools\EnumHelper.cs" />
     <Compile Include="Tools\RandomNumber.cs" />
     <Compile Include="Tools\SubMemoryStream.cs" />

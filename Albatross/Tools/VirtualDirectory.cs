@@ -98,6 +98,38 @@ namespace Albatross.Tools
             return stream.ByteContent;
         }
 
+        /// <summary>
+        /// Gets file data without marking it as modified.
+        /// Use this for read-only operations to prevent files from being unnecessarily re-saved.
+        /// </summary>
+        /// <param name="path">Full path to the file</param>
+        /// <returns>Byte array containing the file data</returns>
+        public byte[] GetFileDataReadOnly(string path)
+        {
+            string[] parts = path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            string fileName = parts[parts.Length - 1];
+
+            VirtualDirectory current = this;
+            for (int i = 0; i < parts.Length - 1; i++)
+            {
+                current = current.GetFolder(parts[i]);
+                if (current == null)
+                    throw new DirectoryNotFoundException(path + " not exist");
+            }
+
+            if (!current.Files.ContainsKey(fileName))
+                throw new FileNotFoundException(fileName + " not exist");
+
+            SubMemoryStream stream = current.Files[fileName];
+
+            // If ByteContent is already set, return it (file was already loaded/modified)
+            if (stream.ByteContent != null)
+                return stream.ByteContent;
+
+            // Otherwise, read without caching to avoid marking as modified
+            return stream.ReadWithoutCaching();
+        }
+
         // -------------------------
         // Enumeration
         // -------------------------

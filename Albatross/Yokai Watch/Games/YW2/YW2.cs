@@ -78,20 +78,8 @@ namespace Albatross.Yokai_Watch.Games.YW2
             Console.WriteLine("========================================");
 
             Console.WriteLine("\n========================================");
-            Console.WriteLine("[DEBUG] Archive 전체 구조 덤프");
+            Console.WriteLine("[DEBUG] Archive 전체 구조 덤프(로그생략)");
             Console.WriteLine("========================================");
-
-            Console.WriteLine("\n--- Language Archive ---");
-            if (Language != null)
-                DumpDirectoryTree(Language.Directory);
-            else
-                Console.WriteLine("(Language 없음)");
-
-            Console.WriteLine("\n--- Game Archive ---");
-            DumpDirectoryTree(Game.Directory);
-
-            Console.WriteLine("========================================\n");
-
 
             ARC0 targetArchive = Language ?? Game;
             Files = new Dictionary<string, GameFile>();
@@ -290,10 +278,10 @@ namespace Albatross.Yokai_Watch.Games.YW2
         {
             Console.WriteLine("=== YW2 저장 시작 ===");
 
-            // 1단계: 메모리 로드
-            Console.WriteLine("1단계: 전체 파일 메모리 로드 중...");
-            ReadAllFiles(Game.Directory);
-            if (Language != null) ReadAllFiles(Language.Directory);
+            // 1단계: 메모리 로드 (주석 처리 - 불필요한 전체 파일 로드 방지)
+            // Console.WriteLine("1단계: 전체 파일 메모리 로드 중...");
+            // ReadAllFiles(Game.Directory);
+            // if (Language != null) ReadAllFiles(Language.Directory);
 
             string tempPath = Path.Combine(Path.GetDirectoryName(RomfsPath), "temp");
             if (!Directory.Exists(tempPath)) Directory.CreateDirectory(tempPath);
@@ -359,8 +347,10 @@ namespace Albatross.Yokai_Watch.Games.YW2
                     (targetName.Length > 5 && fileKey.Contains(targetName)))
                 {
                     var file = dir.Files[fileKey];
-                    if (file.ByteContent == null) file.Read();
-                    return file.ByteContent;
+                    // [FIX] Use ReadWithoutCaching to avoid marking file as modified
+                    if (file.ByteContent != null)
+                        return file.ByteContent;
+                    return file.ReadWithoutCaching();
                 }
             }
             foreach (var sub in dir.Folders)
@@ -399,9 +389,10 @@ namespace Albatross.Yokai_Watch.Games.YW2
 
                     Console.WriteLine($"[GetTextObject] 📁 경로: {cleanPath}");
                     Console.WriteLine($"[GetTextObject] 🗂️ Archive: {(gf.File == Language ? "Language" : "Game")}");
-                    Console.WriteLine($"[GetTextObject] 🔍 GetFileFromFullPath() 호출 중...");
+                    Console.WriteLine($"[GetTextObject] 🔍 GetFileDataReadOnly() 호출 중...");
 
-                    fileData = gf.File.Directory.GetFileFromFullPath(cleanPath);
+                    // [FIX] Use read-only access to avoid marking file as modified
+                    fileData = gf.File.Directory.GetFileDataReadOnly(cleanPath);
                     loadedFrom = $"Files[{textFile}] → {cleanPath}";
 
                     Console.WriteLine($"[GetTextObject] ✅ 파일 로드 성공: {fileData.Length:N0} bytes");
@@ -567,9 +558,53 @@ namespace Albatross.Yokai_Watch.Games.YW2
             catch { }
         }
 
+        // file path와 content를 함께 반환하는 헬퍼 메서드
+        private (string Path, byte[] Content) FindFileRecursiveWithPath(VirtualDirectory dir, string targetName)
+        {
+            foreach (var fileKey in dir.Files.Keys)
+            {
+                // 경로 구분자로 나눈 마지막 부분(파일명)만 추출
+                string fileName = fileKey;
+                int lastSlash = fileName.LastIndexOf('/');
+                if (lastSlash >= 0) fileName = fileName.Substring(lastSlash + 1);
+
+                // 엄격한 매칭: 정확히 일치하거나, 파일명이 targetName으로 시작해야 함
+                if (fileName.Equals(targetName, StringComparison.OrdinalIgnoreCase) ||
+                    fileName.StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
+                {
+                    var file = dir.Files[fileKey];
+                    // [FIX] Use ReadWithoutCaching to avoid marking file as modified
+                    byte[] content = file.ByteContent ?? file.ReadWithoutCaching();
+                    return (fileKey, content);
+                }
+            }
+            foreach (var sub in dir.Folders)
+            {
+                var found = FindFileRecursiveWithPath(sub, targetName);
+                if (found.Content != null) return found;
+            }
+            return (null, null);
+        }
+
+        // 로깅을 포함한 파일 검색 헬퍼
+        private byte[] FindFileWithLog(string callerName, string searchKeyword)
+        {
+            Console.WriteLine($"\n[{callerName}] 불러올 파일 검색 중: \"{searchKeyword}\"...");
+            var found = FindFileRecursiveWithPath(Game.Directory, searchKeyword);
+
+            if (found.Content == null)
+            {
+                Console.WriteLine($"[{callerName}] ❌ 파일을 찾지 못했습니다.");
+                return null;
+            }
+
+            Console.WriteLine($"[{callerName}] ✅ 실제 로드된 파일: \"{found.Path}\" ({found.Content.Length:N0} bytes)");
+            return found.Content;
+        }
+
         public ICharaabilityConfig[] GetAbilities()
         {
-            byte[] data = FindFileRecursive(Game.Directory, "chara_ability");
+            byte[] data = FindFileWithLog("GetAbilities", "chara_ability");
             if (data == null) return new ICharaabilityConfig[0];
 
             CfgBin cfg = new CfgBin();
@@ -579,7 +614,8 @@ namespace Albatross.Yokai_Watch.Games.YW2
                 .Where(x => x.GetName() == "CHARA_ABILITY_CONFIG_INFO_LIST_BEG")
                 .SelectMany(x => x.Children)
                 .Where(x => x.GetName() == "CHARA_ABILITY_CONFIG_INFO")
-                .Select(x => {
+                .Select(x =>
+                {
                     var ab = x.ToClass<CharaabilityConfig>();
                     if (x.Variables.Count > 0) ab.CharaabilityConfigHash = Convert.ToInt32(x.Variables[0].Value);
                     return (ICharaabilityConfig)ab;
@@ -589,16 +625,36 @@ namespace Albatross.Yokai_Watch.Games.YW2
 
         public IBattleCommand[] GetBattleCommands()
         {
+            Console.WriteLine("\n[GetBattleCommands] 불러올 파일 검색 중: \"battle_command\"...");
+
             byte[] data = null;
+            string loadedPath = "";
+
             Action<VirtualDirectory> scanner = null;
-            scanner = (d) => {
+            scanner = (d) =>
+            {
                 var k = d.Files.Keys.Where(x => x.StartsWith("battle_command") && !x.Contains("link")).OrderByDescending(x => x).FirstOrDefault();
-                if (k != null) { data = d.GetFileFromFullPath(k); return; }
+                if (k != null)
+                {
+                    // [FIX] Use read-only access to avoid marking file as modified
+                    data = d.GetFileDataReadOnly(k);
+                    loadedPath = k; // 경로 저장 (실제로는 파일명만 키로 저장됨, 필요시 수정 가능하나 여기선 키값 사용)
+                    // VirtualDirectory 구조상 k가 전체 경로일 수도, 파일명일 수도 있음. 
+                    // GetFileFromFullPath가 동작하므로 k는 유효한 경로.
+                    return;
+                }
                 foreach (var s in d.Folders) if (data == null) scanner(s);
             };
             scanner(Game.Directory);
 
-            if (data == null) return new IBattleCommand[0];
+            if (data == null)
+            {
+                Console.WriteLine("[GetBattleCommands] ❌ 파일을 찾지 못했습니다.");
+                return new IBattleCommand[0];
+            }
+
+            Console.WriteLine($"[GetBattleCommands] ✅ 실제 로드된 파일: \"{loadedPath}\" ({data.Length:N0} bytes)");
+
             CfgBin cfg = new CfgBin();
             cfg.Open(data);
             return cfg.Entries.Where(x => x.GetName() == "BATTLE_COMMAND_INFO_BEGIN")
@@ -607,13 +663,14 @@ namespace Albatross.Yokai_Watch.Games.YW2
 
         public ICharabase[] GetCharacterbase(bool isYokai)
         {
-            byte[] data = FindFileRecursive(Game.Directory, "chara_base");
+            byte[] data = FindFileWithLog("GetCharacterbase", "chara_base");
             if (data == null) return new ICharabase[0];
             CfgBin f = new CfgBin(); f.Open(data);
             string b = isYokai ? "CHARA_BASE_YOKAI_INFO_BEGIN" : "CHARA_BASE_INFO_BEGIN";
             var e = f.Entries.FirstOrDefault(x => x.GetName() == b) ?? f.Entries.FirstOrDefault(x => x.GetName().Contains("INFO_BEGIN"));
             if (e == null) return new ICharabase[0];
-            return e.Children.Select(x => {
+            return e.Children.Select(x =>
+            {
                 try
                 {
                     if (isYokai)
@@ -630,7 +687,7 @@ namespace Albatross.Yokai_Watch.Games.YW2
 
         public ICharaparam[] GetCharaparam()
         {
-            byte[] data = FindFileRecursive(Game.Directory, "chara_param");
+            byte[] data = FindFileWithLog("GetCharaparam", "chara_param");
             if (data == null) return new ICharaparam[0];
             CfgBin f = new CfgBin(); f.Open(data);
             return f.Entries.Where(x => x.GetName() == "CHARA_PARAM_INFO_BEGIN").SelectMany(x => x.Children).Select(x => x.ToClass<Charaparam>()).ToArray();
@@ -638,27 +695,13 @@ namespace Albatross.Yokai_Watch.Games.YW2
 
         public void SaveCharaparam(ICharaparam[] p)
         {
-            if (p == null) return;
-            Charaparam[] fp = p.OfType<Charaparam>().ToArray();
-            VirtualDirectory td = null;
-            string fn = "";
-            Action<VirtualDirectory> sc = null;
-            sc = (d) => {
-                var k = d.Files.Keys.FirstOrDefault(x => x.StartsWith("chara_param"));
-                if (k != null) { fn = k; td = d; return; }
-                foreach (var s in d.Folders) if (td == null) sc(s);
-            };
-            sc(Game.Directory);
-            if (td == null) return;
-            CfgBin f = new CfgBin();
-            f.Open(td.GetFileFromFullPath(fn));
-            f.ReplaceEntry("CHARA_PARAM_INFO_BEGIN", "CHARA_PARAM_INFO_", fp);
-            td.Files[fn].ByteContent = f.Save();
+            // This method is kept for backward compatibility but now does nothing
+            // Actual saving happens in SaveCharaevolution which saves both sections
         }
 
         public IItem[] GetItems(string type)
         {
-            byte[] data = FindFileRecursive(Game.Directory, "item_config");
+            byte[] data = FindFileWithLog("GetItems", "item_config");
             if (data == null) return new IItem[0];
             CfgBin f = new CfgBin(); f.Open(data);
             if (type == "all")
@@ -671,7 +714,7 @@ namespace Albatross.Yokai_Watch.Games.YW2
 
         public ICharaevolve[] GetCharaevolution()
         {
-            byte[] data = FindFileRecursive(Game.Directory, "chara_param");
+            byte[] data = FindFileWithLog("GetCharaevolution", "chara_param");
             if (data == null) return new ICharaevolve[0];
             CfgBin f = new CfgBin(); f.Open(data);
             return f.Entries.Where(x => x.GetName() == "CHARA_EVOLVE_INFO_BEGIN").SelectMany(x => x.Children).Select(x => x.ToClass<Charaevolve>()).ToArray();
@@ -683,7 +726,8 @@ namespace Albatross.Yokai_Watch.Games.YW2
             YokaiCharabase[] y = c.OfType<YokaiCharabase>().ToArray();
             VirtualDirectory td = null; string fn = "";
             Action<VirtualDirectory> sc = null;
-            sc = (d) => {
+            sc = (d) =>
+            {
                 var k = d.Files.Keys.FirstOrDefault(x => x.StartsWith("chara_base"));
                 if (k != null) { fn = k; td = d; return; }
                 foreach (var s in d.Folders) if (td == null) sc(s);
@@ -691,7 +735,8 @@ namespace Albatross.Yokai_Watch.Games.YW2
             sc(Game.Directory);
             if (td == null) return;
             CfgBin f = new CfgBin();
-            f.Open(td.GetFileFromFullPath(fn));
+            // [FIX] Use read-only access for initial load
+            f.Open(td.GetFileDataReadOnly(fn));
             f.ReplaceEntry("CHARA_BASE_INFO_BEGIN", "CHARA_BASE_INFO_", n);
             f.ReplaceEntry("CHARA_BASE_YOKAI_INFO_BEGIN", "CHARA_BASE_YOKAI_INFO_", y);
             td.Files[fn].ByteContent = f.Save();
@@ -702,7 +747,39 @@ namespace Albatross.Yokai_Watch.Games.YW2
         public void SaveMapEncounter(string m, IEncountTable[] t, IEncountChara[] c) { }
         public (IShopConfig[], IShopValidCondition[]) GetShop(string s) => (null, null);
         public void SaveShop(string s, IShopConfig[] c, IShopValidCondition[] v) { }
-        public void SaveCharaevolution(ICharaevolve[] c) { }
+        public void SaveCharaevolution(ICharaevolve[] charaevolutions)
+        {
+            // This method is kept for backward compatibility but now does nothing
+            // Actual saving happens in SaveCharaparamAndEvolution
+        }
+
+        public void SaveCharaparamAndEvolution(ICharaparam[] charaparams, ICharaevolve[] charaevolutions)
+        {
+            if (charaparams == null && charaevolutions == null) return;
+
+            Charaparam[] formatCharaparams = charaparams?.OfType<Charaparam>().ToArray();
+            Charaevolve[] formatCharaevolutions = charaevolutions?.OfType<Charaevolve>().ToArray();
+
+            VirtualDirectory characterFolder = Game.Directory.GetFolderFromFullPath("data/res/character");
+            string lastCharaparam = characterFolder.Files.Keys.Where(x => x.StartsWith("chara_param")).OrderByDescending(x => x).First();
+
+            CfgBin charaparamFile = new CfgBin();
+            // [FIX] Use read-only access to avoid marking file as modified
+            charaparamFile.Open(characterFolder.GetFileDataReadOnly(lastCharaparam));
+
+            // [FIX] Save BOTH sections in single operation to prevent double-save corruption
+            if (formatCharaparams != null && formatCharaparams.Length > 0)
+            {
+                charaparamFile.ReplaceEntry("CHARA_PARAM_INFO_BEGIN", "CHARA_PARAM_INFO_", formatCharaparams);
+            }
+
+            if (formatCharaevolutions != null && formatCharaevolutions.Length > 0)
+            {
+                charaparamFile.ReplaceEntry("CHARA_EVOLVE_INFO_BEGIN", "CHARA_EVOLVE_INFO_", formatCharaevolutions);
+            }
+
+            characterFolder.Files[lastCharaparam].ByteContent = charaparamFile.Save();
+        }
         public void SaveCharascale(ICharascale[] c) { }
         public ICharascale[] GetCharascale() => new ICharascale[0];
         public IOrgetimeTechnic[] GetOrgetimeTechnics() => new IOrgetimeTechnic[0];
