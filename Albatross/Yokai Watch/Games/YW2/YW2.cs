@@ -755,6 +755,7 @@ namespace Albatross.Yokai_Watch.Games.YW2
 
         public void SaveCharaparamAndEvolution(ICharaparam[] charaparams, ICharaevolve[] charaevolutions)
         {
+            
             if (charaparams == null && charaevolutions == null) return;
 
             Charaparam[] formatCharaparams = charaparams?.OfType<Charaparam>().ToArray();
@@ -766,7 +767,7 @@ namespace Albatross.Yokai_Watch.Games.YW2
             CfgBin charaparamFile = new CfgBin();
             // [FIX] Use read-only access to avoid marking file as modified
             charaparamFile.Open(characterFolder.GetFileDataReadOnly(lastCharaparam));
-
+            
             // [FIX] Save BOTH sections in single operation to prevent double-save corruption
             if (formatCharaparams != null && formatCharaparams.Length > 0)
             {
@@ -777,6 +778,7 @@ namespace Albatross.Yokai_Watch.Games.YW2
             {
                 charaparamFile.ReplaceEntry("CHARA_EVOLVE_INFO_BEGIN", "CHARA_EVOLVE_INFO_", formatCharaevolutions);
             }
+            
 
             characterFolder.Files[lastCharaparam].ByteContent = charaparamFile.Save();
         }

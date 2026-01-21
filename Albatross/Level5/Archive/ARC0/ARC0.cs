@@ -6,7 +6,9 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using Albatross.Tools;
 using Albatross.Level5.Compression;
+using Albatross.Level5.Compression.LZ10;
 using Albatross.Level5.Compression.NoCompression;
+using Albatross.Level5.Compression.LZ11;
 
 namespace Albatross.Level5.Archive.ARC0
 {
@@ -195,7 +197,7 @@ namespace Albatross.Level5.Archive.ARC0
 
                 // VirtualDirectory 기반으로 폴더 수집
                 var folders = Directory.GetAllFoldersAsDictionnary()
-                    .OrderBy(f => Crc32.Compute(Encoding.UTF8.GetBytes(NormalizePath(f.Key) + "/")))
+                    .OrderBy(f => Crc32.Compute(Encoding.GetEncoding("Shift-JIS").GetBytes(NormalizePath(f.Key) + "/")))
                     .ToList();
 
                 var dirEntries = new List<ARC0Support.DirectoryEntry>();
@@ -206,13 +208,12 @@ namespace Albatross.Level5.Archive.ARC0
 
                 // [FIX] 중간 경로의 빈 폴더 제거 로직 (항상 실행)
                 // 원본 구조 유지를 위해 필요한 경우 조정 가능
-                // [FIX] 중간 경로의 빈 폴더 제거 로직 (항상 실행)
-                // 원본 구조 유지를 위해 필요한 경우 조정 가능
+                // [FIX] 보존: 원본 구조 유지를 위해 빈 폴더 제거 로직 비활성화
                 folders.RemoveAll(k => k.Value.Files.Count == 0 && k.Value.Folders.Count > 0);
 
                 Console.WriteLine($"[Save] 디렉토리 개수: {folders.Count}");
                 Console.WriteLine($"[Save] 디렉토리 개수: {folders.Count}");
-                Console.WriteLine($"[Save] NameTable 인코딩: UTF-8");
+                Console.WriteLine($"[Save] NameTable 인코딩: Shift-JIS");
 
                 int fileIndex = 0;
                 uint dataOffsetCursor = 0;
@@ -283,8 +284,8 @@ namespace Albatross.Level5.Archive.ARC0
                     // Directory Entry 생성
                     var dirEntry = new ARC0Support.DirectoryEntry
                     {
-                        // [FIX] CRC 계산 시에도 Slash 포함된 경로 사용
-                        Crc32 = Crc32.Compute(Encoding.UTF8.GetBytes(saveDirPath)),
+                        // [FIX] Match Kuriimu: CRC uses Shift-JIS even for directories
+                        Crc32 = Crc32.Compute(Encoding.GetEncoding("Shift-JIS").GetBytes(saveDirPath)),
                         FirstFileIndex = (ushort)fileIndex,
                         FileCount = (short)dir.Files.Count,
                         DirectoryCount = (short)dir.Folders.Count,
@@ -357,6 +358,16 @@ namespace Albatross.Level5.Archive.ARC0
                 Console.WriteLine($"  - 파일: {fileEntries.Count}개");
                 Console.WriteLine($"  - NameTable 크기: {nameTable.Count} bytes");
 
+                // [FIX] Match Kuriimu Logic: Sort Directory Entries by CRC and Re-assign FirstDirectoryIndex
+                // This logic is ported directly from Kuriimu2's Arc0.cs
+                int directoryIndex = 0;
+                dirEntries = dirEntries.OrderBy(x => x.Crc32).Select(x =>
+                {
+                    x.FirstDirectoryIndex = (ushort)directoryIndex;
+                    directoryIndex += x.DirectoryCount;
+                    return x;
+                }).ToList();
+
                 // ===== Write =====
                 Console.WriteLine($"\n[Save] 파일 쓰기 및 구조 로깅...");
 
@@ -366,7 +377,7 @@ namespace Albatross.Level5.Archive.ARC0
                 // 1. Directory Entries
                 long dirOffset = writer.BaseStream.Position;
                 Console.WriteLine($"[Save Deep Log] DirectoryEntriesOffset: 0x{dirOffset:X8}");
-                writer.Write(CompressBlockTo(dirEntries.ToArray(), new NoCompression()));
+                writer.Write(CompressBlockTo(dirEntries.ToArray(), new LZ10()));
                 writer.WriteAlignment(4);
 
                 // 로그: 처음 5개 및 마지막 5개 디렉토리
@@ -375,13 +386,13 @@ namespace Albatross.Level5.Archive.ARC0
                 // 2. Directory Hash
                 long dirHashOffset = writer.BaseStream.Position;
                 Console.WriteLine($"[Save Deep Log] DirectoryHashOffset: 0x{dirHashOffset:X8}");
-                writer.Write(CompressBlockTo(dirEntries.Select(d => d.Crc32).ToArray(), new NoCompression()));
+                writer.Write(CompressBlockTo(dirEntries.Select(d => d.Crc32).ToArray(), new LZ10()));
                 writer.WriteAlignment(4);
 
                 // 3. File Entries
                 long fileOffset = writer.BaseStream.Position;
                 Console.WriteLine($"[Save Deep Log] FileEntriesOffset: 0x{fileOffset:X8}");
-                writer.Write(CompressBlockTo(fileEntries.ToArray(), new NoCompression()));
+                writer.Write(CompressBlockTo(fileEntries.ToArray(), new LZ10()));
                 writer.WriteAlignment(4);
 
                 // 로그: 처음 5개 및 마지막 5개 파일
@@ -390,21 +401,25 @@ namespace Albatross.Level5.Archive.ARC0
                 // 4. Name Table
                 long nameOffset = writer.BaseStream.Position;
                 Console.WriteLine($"[Save Deep Log] NameTableOffset: 0x{nameOffset:X8}");
-                writer.Write(CompressBlockTo(nameTable.ToArray(), new NoCompression()));
+                writer.Write(CompressBlockTo(nameTable.ToArray(), new LZ10()));
                 writer.WriteAlignment(4);
                 Console.WriteLine($"[Save Deep Log] NameTable Size: {nameTable.Count} bytes");
 
-                // [변경 추적] ByteContent가 있는 파일만 로그 출력
+                // [FIX] Revert Data Section Alignment to 4-byte (Match Kuriimu)
+                writer.WriteAlignment(4);
+
+                // 5. Data Section
+                // 5. Data Section
+                // long dataOffset = writer.BaseStream.Position; (Moved below)
                 Console.WriteLine($"\n========================================");
                 Console.WriteLine($"[Modified Files] 수정된 파일 추적");
-                Console.WriteLine($"========================================");
+                Console.WriteLine($"========================================\n");
                 int modifiedCount = 0;
                 foreach (var f in fileEntries)
                 {
                     var sms = fileMap[f];
                     if (sms.ByteContent != null)
                     {
-                        modifiedCount++;
                         modifiedCount++;
                         // 파일 이름 찾기
                         string fName = fileNameMap.ContainsKey(f) ? fileNameMap[f] : "Unknown";
@@ -414,15 +429,87 @@ namespace Albatross.Level5.Archive.ARC0
                 Console.WriteLine($"총 {modifiedCount}개 파일이 수정되었습니다.");
                 Console.WriteLine($"========================================\n");
 
+                // [FIX] Prepare parallel lists to avoid Dictionary Key issues (KeyNotFoundException)
+                // When we modify FileEntry struct (which is a key in fileMap/fileNameMap), the hash code changes
+                // and we can no longer look up items. So we cache them by index first.
+                List<SubMemoryStream> orderedStreams = new List<SubMemoryStream>(fileEntries.Count);
+                List<string> orderedNames = new List<string>(fileEntries.Count);
+
+                for (int i = 0; i < fileEntries.Count; i++)
+                {
+                    var f = fileEntries[i]; // Original unchanged struct
+                    orderedStreams.Add(fileMap[f]);
+                    orderedNames.Add(fileNameMap.ContainsKey(f) ? fileNameMap[f] : "Unknown");
+                }
+
+                // [EMERGENCY TEST] LZ11 압축 완전 비활성화 - 테스트용
+                /*
+                // [FIX] Apply Raw LZ11 Compression for specific files
+                for (int i = 0; i < fileEntries.Count; i++)
+                {
+                    var f = fileEntries[i];
+                    var sms = orderedStreams[i]; // Access by index
+                    if (sms.ByteContent != null)
+                    {
+                        string fName = orderedNames[i]; // Access by index
+                        // [FIX] chara_param은 LZ11로 감싸면 CfgBin 구조가 깨짐 (KeyTable 손상)
+                        // List of files known to require LZ11 compression by the game engine
+                        if (fName.Contains("item_config") ||
+                            fName.Contains("battle_command") ||
+                            fName.Contains("chara_base") ||
+                            fName.Contains("chara_ability"))
+                        {
+                            Console.WriteLine($"[LZ11 Protection] Compressing {fName} with Raw LZ11...");
+                            byte[] compressed = Albatross.Level5.Compression.LZ11.Lz11Compression.CompressRawLZ11(sms.ByteContent);
+
+                            // Update content and size in SubMemoryStream
+                            sms.ByteContent = compressed;
+                            sms.Size = compressed.Length;
+
+                            // Update FileEntry Size
+                            f.FileSize = (uint)compressed.Length;
+
+                            // [FIX] DO NOT update CRC32! It is the Filename Hash, not Content Hash.
+                            // f.Crc32 = Crc32.Compute(compressed); 
+                            Console.WriteLine($"  -> Compressed Size: {f.FileSize} bytes, CRC retained: 0x{f.Crc32:X8}");
+
+                            // Re-assign struct to list to persist changes
+                            fileEntries[i] = f;
+                        }
+                    }
+                }
+                */
+
+                // [FIX] Recalculate File Offsets!
+                // Since file sizes changed (compression), we must update FileOffset for ALL files
+                // to ensure they are packed contiguously in the new Data Section.
+                uint currentFileOffset = 0;
+                for (int i = 0; i < fileEntries.Count; i++)
+                {
+                    var f = fileEntries[i];
+
+                    // Align current offset to 4 bytes
+                    currentFileOffset = (uint)((currentFileOffset + 3) & ~3);
+                    f.FileOffset = currentFileOffset;
+
+                    // Add file size
+                    currentFileOffset += f.FileSize;
+
+                    // Re-assign struct to list
+                    fileEntries[i] = f;
+                }
+                Console.WriteLine($"[Save] Total Data Size: {currentFileOffset} bytes");
+
                 // 5. Data
                 long dataOffset = writer.BaseStream.Position;
                 Console.WriteLine($"[Save Deep Log] DataOffset: 0x{dataOffset:X8}");
 
                 // 데이터 쓰기 (수정되지 않은 파일은 Read() 호출 안 함)
                 int dataLogCount = 0;
-                foreach (var f in fileEntries)
+                for (int i = 0; i < fileEntries.Count; i++)
                 {
-                    var sms = fileMap[f];
+                    var f = fileEntries[i]; // This is the MODIFIED struct
+                    var sms = orderedStreams[i]; // This is the stable stream reference
 
                     // [FIX] ByteContent가 없는 파일은 원본 그대로 복사 (Read() 호출 안 함)
                     // CopyTo()가 내부적으로 BaseStream에서 직접 읽음
@@ -452,6 +539,15 @@ namespace Albatross.Level5.Archive.ARC0
                 Header.FileEntriesCount = fileEntries.Count;
                 Header.DirectoryCount = dirEntries.Count;
                 Header.FileCount = fileEntries.Count;
+
+                // [FIX] Calculate TableChunkSize based on UNCOMPRESSED size of table contents (Match Kuriimu)
+                // This tells the game how much memory to allocate for metadata tables.
+                // 20 = DirEntrySize, 4 = DirHashSize, 16 = FileEntrySize
+                // 32 = Header Reserve or Padding? Kuriimu adds 0x20 + 3 and aligns to 4.
+                Header.TableChunkSize = (int)(dirEntries.Count * 20 +
+                                              dirEntries.Count * 4 +
+                                              fileEntries.Count * 16 +
+                                              nameTable.Count + 0x20 + 3) & ~3;
 
                 writer.Seek(0);
                 writer.WriteStruct(Header);

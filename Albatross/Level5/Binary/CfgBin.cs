@@ -127,8 +127,9 @@ namespace Albatross.Level5.Binary
 
                 writer.Write(EncodeKeyTable(uniqueKeysList));
 
-                // [리팩토링] t2b 풋터 제거
-                // 네이티브 포맷과 일치하도록 순수 데이터만 저장
+                // [FIX] Restore t2b footer - required by game engine
+                writer.Write(new byte[5] { 0x01, 0x74, 0x32, 0x62, 0xFE });
+                writer.Write(new byte[4] { 0x01, GetEncoding(), 0x00, 0x01 });
                 writer.WriteAlignment();
 
                 writer.Seek(0);
@@ -178,8 +179,9 @@ namespace Albatross.Level5.Binary
 
                 writer.Write(EncodeKeyTable(uniqueKeysList));
 
-                // [리팩토링] t2b 풋터 제거
-                // 네이티브 포맷과 일치하도록 순수 데이터만 저장
+                // [FIX] Restore t2b footer - required by game engine
+                writer.Write(new byte[5] { 0x01, 0x74, 0x32, 0x62, 0xFE });
+                writer.Write(new byte[4] { 0x01, GetEncoding(), 0x00, 0x01 });
                 writer.WriteAlignment();
 
                 writer.Seek(0);
@@ -561,6 +563,19 @@ namespace Albatross.Level5.Binary
                 writer.WriteStruct(header);
 
                 return stream.ToArray();
+            }
+        }
+
+
+        private byte GetEncoding()
+        {
+            if (Encoding != null && Encoding.Equals(Encoding.GetEncoding("SHIFT-JIS")))
+            {
+                return 0;
+            }
+            else
+            {
+                return 1;
             }
         }
 
