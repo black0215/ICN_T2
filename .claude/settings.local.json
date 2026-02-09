@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(dotnet build:*)",
+      "Bash(timeout:*)",
+      "Bash(start dotnet run --project ICN_T2/ICN_T2.csproj)"
+    ]
+  }
+}

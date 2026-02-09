@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Level5\**" />
+    <Compile Remove="Logic\Binary\**" />
+    <Compile Remove="UI\WPF\Controls\**" />
+    <Compile Remove="YokaiWatch\Logic\**" />
+    <EmbeddedResource Remove="Level5\**" />
+    <EmbeddedResource Remove="Logic\Binary\**" />
+    <EmbeddedResource Remove="UI\WPF\Controls\**" />
+    <EmbeddedResource Remove="YokaiWatch\Logic\**" />
+    <None Remove="Level5\**" />
+    <None Remove="Logic\Binary\**" />
+    <None Remove="UI\WPF\Controls\**" />
+    <None Remove="YokaiWatch\Logic\**" />
+    <Page Remove="UI\WPF\Controls\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Tools\Helpers\CfgBinTestGenerator.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="nul" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Resources\" />
+    <Folder Include="Tools\IO\" />
+    <Folder Include="UI\WPF\Views\" />
+    <Folder Include="YokaiWatch\Games\YW2\MapTools\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\UI icon\**\*" />
+    <Resource Include="Resources\MenuBG\**\*" />
+    <Resource Include="Resources\Tribe\**\*" />
+    <None Update="Resources\Rank Icon\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\Tribe Icon\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\Food Icon\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\Web\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\PuniPuniAssets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3719.77" />
+    <PackageReference Include="ReaLTaiizor" Version="3.8.1.5" />
+    <PackageReference Include="WPF.UI" Version="3.4.2.7" />
+    <PackageReference Include="System.Reactive" Version="6.1.0" />
+    <PackageReference Include="ReactiveUI.WPF" Version="22.3.1" />
+    <PackageReference Include="DynamicData" Version="9.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

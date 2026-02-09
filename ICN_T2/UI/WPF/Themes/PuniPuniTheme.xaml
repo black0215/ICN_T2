@@ -1,0 +1,250 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- ============================================ -->
+    <!-- 🌸 SAKURA SOFT COLOR PALETTE                  -->
+    <!-- ============================================ -->
+
+    <!-- Warm Gold (Primary Action toned down) -->
+    <Color x:Key="PuniYellowLight">#FFFFE9A8</Color>
+    <Color x:Key="PuniYellow">#FFFFC857</Color>
+    <Color x:Key="PuniYellowDark">#FFCC9A2E</Color>
+    <Color x:Key="PuniGold">#FFB8892D</Color>
+
+    <!-- Soft Cyan -->
+    <Color x:Key="PuniCyanLight">#FFB2EBF2</Color>
+    <Color x:Key="PuniCyan">#FF80DEEA</Color>
+    <Color x:Key="PuniCyanDark">#FF4DD0E1</Color>
+
+    <!-- Soft Purple -->
+    <Color x:Key="PuniPurpleLight">#FFE1BEE7</Color>
+    <Color x:Key="PuniPurple">#FFCE93D8</Color>
+    <Color x:Key="PuniPurpleDark">#FFBA68C8</Color>
+
+    <!-- Alerts toned down -->
+    <Color x:Key="PuniRed">#FFEF9A9A</Color>
+    <Color x:Key="PuniGreen">#FFA5D6A7</Color>
+
+    <!-- Neutrals -->
+    <Color x:Key="PuniWhite">#FFFFFFFF</Color>
+    <Color x:Key="PuniBlack">#FF222222</Color>
+    <Color x:Key="PuniSoftBorder">#40FFFFFF</Color>
+    <Color x:Key="PuniTextDark">#FF2D2D2D</Color>
+
+    <!-- Glass tones (important for your UI) -->
+    <Color x:Key="PuniGlassTop">#CCFFFFFF</Color>
+    <Color x:Key="PuniGlassMid">#99FFF8F4</Color>
+    <Color x:Key="PuniGlassBottom">#66FFEFE8</Color>
+
+    <!-- ============================================ -->
+    <!-- BRUSHES                                       -->
+    <!-- ============================================ -->
+
+    <SolidColorBrush x:Key="PuniBorderBrush" Color="{StaticResource PuniSoftBorder}"/>
+    <SolidColorBrush x:Key="PuniTextBrush" Color="{StaticResource PuniTextDark}"/>
+    <SolidColorBrush x:Key="PuniYellowBrush" Color="{StaticResource PuniYellow}"/>
+    <SolidColorBrush x:Key="PuniGoldBrush" Color="{StaticResource PuniGold}"/>
+    <SolidColorBrush x:Key="PuniGlassBrush" Color="#99FFFFFF"/>
+
+    <!-- ============================================ -->
+    <!-- GRADIENTS                                     -->
+    <!-- ============================================ -->
+
+    <!-- 🌸 Soft Glass Panel -->
+    <LinearGradientBrush x:Key="PuniGlassPanelGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="{StaticResource PuniGlassTop}" Offset="0"/>
+        <GradientStop Color="{StaticResource PuniGlassMid}" Offset="0.5"/>
+        <GradientStop Color="{StaticResource PuniGlassBottom}" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Soft Gold Button -->
+    <LinearGradientBrush x:Key="PuniButtonYellowGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="{StaticResource PuniYellowLight}" Offset="0"/>
+        <GradientStop Color="{StaticResource PuniYellow}" Offset="0.4"/>
+        <GradientStop Color="{StaticResource PuniYellowDark}" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="PuniButtonYellowPressedGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="{StaticResource PuniYellow}" Offset="0"/>
+        <GradientStop Color="{StaticResource PuniGold}" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Gloss -->
+    <LinearGradientBrush x:Key="PuniGlossOverlay" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#55FFFFFF" Offset="0"/>
+        <GradientStop Color="#15FFFFFF" Offset="0.5"/>
+        <GradientStop Color="#00FFFFFF" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- ============================================ -->
+    <!-- SHADOWS (softer than original)                -->
+    <!-- ============================================ -->
+
+    <DropShadowEffect x:Key="PuniShadowNormal" Color="Black" Opacity="0.25" BlurRadius="10" ShadowDepth="2"/>
+    <DropShadowEffect x:Key="PuniShadowHover" Color="Black" Opacity="0.35" BlurRadius="14" ShadowDepth="3"/>
+    <DropShadowEffect x:Key="PuniShadowPressed" Color="Black" Opacity="0.2" BlurRadius="6" ShadowDepth="1"/>
+
+    <!-- ============================================ -->
+    <!-- 🌸 PRIMARY BUTTON (SOFT)                      -->
+    <!-- ============================================ -->
+
+    <Style x:Key="PuniButtonPrimary" TargetType="Button">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource PuniTextBrush}"/>
+        <Setter Property="Padding" Value="20,8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Outer"
+                            CornerRadius="26"
+                            BorderBrush="{StaticResource PuniBorderBrush}"
+                            BorderThickness="1.5"
+                            Background="{StaticResource PuniButtonYellowGradient}"
+                            Effect="{StaticResource PuniShadowNormal}">
+                        <Grid>
+                            <Border Background="{StaticResource PuniGlossOverlay}"
+                                    CornerRadius="26"
+                                    IsHitTestVisible="False"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Outer" Property="Effect" Value="{StaticResource PuniShadowHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Outer" Property="Background" Value="{StaticResource PuniButtonYellowPressedGradient}"/>
+                            <Setter TargetName="Outer" Property="Effect" Value="{StaticResource PuniShadowPressed}"/>
+                            <Setter TargetName="Outer" Property="RenderTransform">
+                                <Setter.Value>
+                                    <TranslateTransform Y="1"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================================ -->
+    <!-- 🌸 GLASS PANEL                                 -->
+    <!-- ============================================ -->
+
+    <Style x:Key="PuniGlassPanel" TargetType="Border">
+        <Setter Property="CornerRadius" Value="22"/>
+        <Setter Property="Background" Value="{StaticResource PuniGlassPanelGradient}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PuniBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1.5"/>
+        <Setter Property="Effect" Value="{StaticResource PuniShadowNormal}"/>
+        <Setter Property="Padding" Value="24"/>
+    </Style>
+
+    <!-- ============================================ -->
+    <!-- 🌸 ICON BUTTON                                 -->
+    <!-- ============================================ -->
+
+    <Style x:Key="PuniIconButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="2"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#40FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#60FFFFFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================================ -->
+    <!-- 🌸 CANCEL BUTTON                               -->
+    <!-- ============================================ -->
+
+    <Style x:Key="PuniCancelButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#808080"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="12" BorderBrush="#40808080" BorderThickness="1">
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#20808080"/>
+                            <Setter Property="Foreground" Value="#404040"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#40808080"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================================ -->
+    <!-- 🌸 TAB BUTTON (Segmented Control)              -->
+    <!-- ============================================ -->
+
+    <Style x:Key="PuniTabButtonStyle" TargetType="RadioButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#CCFFFFFF"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="16,6"/>
+        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="border" 
+                            Background="{TemplateBinding Background}" 
+                            CornerRadius="8" 
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#FFFFFF"/>
+                            <Setter Property="Foreground" Value="#333333"/>
+                            <Setter TargetName="border" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="4" ShadowDepth="1"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+                            <Setter TargetName="border" Property="Background" Value="#20FFFFFF"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsChecked" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="border" Property="Background" Value="#F0FFFFFF"/>
+                            <Setter Property="Foreground" Value="#333333"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

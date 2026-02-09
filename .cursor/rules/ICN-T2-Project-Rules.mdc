@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+
+## 1. Logging Policy (CRITICAL) - 모든 Trace, Debug, Console 로그 코드는 절대 삭제하거나 수정하지 않는다. - 새로운 기능을 추가할 때도 기존 로깅 패턴을 유지하며, 주요 로직 진입점에는 반드시 로그를 남긴다.(한글)
+ ## 2. C# & UI Animation Standards - WinForms/WPF UI 작업 시, 마우스 오버/클릭 효과에 부드러운 애니메이션(Lerp, Easing)을 우선 적용한다. - UI 로직과 데이터 파싱 로직을 엄격히 분리하되, Designer.cs와의 연결성을 항상 확인한다.
+ ## 3. Domain Knowledge (Yo-kai Watch 2) - 바이너리 오프셋이나 변수 매핑(ID, Level, Stat 등) 분석 시 ".\ICN_T2\YokaiWatch\Games\YW2\Logic"내부의 클래스 구조를 기준으로 삼는다.
+ ## 4. Project succession - Albatross는 이 프로젝트의 레거시 파일이다. 폼의 구조나, 혹은 ui와 변수를 매핑할 때 논리를 참고한다.

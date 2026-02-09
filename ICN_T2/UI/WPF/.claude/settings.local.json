@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b \"C:\\\\Users\\\\home\\\\Desktop\\\\ICN_T2\\\\ICN_T2\\\\UI\\\\WPF\")",
+      "Bash(dir:*)",
+      "Bash(dotnet build:*)"
+    ]
+  }
+}
