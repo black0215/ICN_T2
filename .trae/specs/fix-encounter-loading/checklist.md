@@ -1,0 +1,5 @@
+- [ ] `LoadMaps` populates `Maps` collection
+- [ ] `LoadYokaiNames` populates `YokaiNames` dictionary
+- [ ] `LoadEncounter` populates `Tables` and `Slots`
+- [ ] File search is case-insensitive
+- [ ] Entry names for `EncountTable` match the binary definition

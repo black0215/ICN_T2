@@ -140,3 +140,5 @@ StyleCopReport.xml
 
 # Large files
 Samples/*.fa
+
+sample/*.fa

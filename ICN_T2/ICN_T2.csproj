@@ -51,6 +51,7 @@
     <Resource Include="Resources\UI icon\**\*" />
     <Resource Include="Resources\MenuBG\**\*" />
     <Resource Include="Resources\Tribe\**\*" />
+    <Resource Include="Resources\Fonts\**\*" />
     <!-- [Phase 5] HLSL Shader Resource -->
     <Resource Include="UI\WPF\Effects\GlassRefraction.ps" />
     <None Update="Resources\Rank Icon\**\*">

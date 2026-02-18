@@ -1,0 +1,2 @@
+- [x] Map list is populated with files (e.g., `t101...`).
+- [x] Selecting a map from the list successfully loads its data without error.

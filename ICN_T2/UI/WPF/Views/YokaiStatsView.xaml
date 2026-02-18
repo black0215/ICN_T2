@@ -199,7 +199,7 @@
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock Text="{Binding SelectedStats.Name}" 
-                                FontSize="28" FontWeight="Bold" FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic"
+                                FontSize="28" FontWeight="Bold" FontFamily="{StaticResource GmarketSansBold}"
                                 Background="Transparent" Foreground="#1F1F1F"
                                 VerticalAlignment="Center"
                                 Margin="0,0,0,8"/>
@@ -225,10 +225,10 @@
                 <Border x:Name="StatsCard" Style="{StaticResource CardStyle}" Visibility="Collapsed">
                     <StackPanel>
                         <TextBlock Text="?λ젰移?/ ?깆옣 / ?쒕엻" Style="{StaticResource CardHeaderStyle}"
-                            FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic"/>
+                            FontFamily="{StaticResource GmarketSansBold}"/>
 
                         <TextBlock Text="?듭떖 ?λ젰移?(理쒖냼 / 理쒕?)" FontWeight="SemiBold" Margin="0,0,0,10"
-                                   FontFamily="G留덉폆 ?곗뒪 TTF, Malgun Gothic" FontSize="16" Foreground="#E0E0E0"/>
+                                   FontFamily="{StaticResource GmarketSansMedium}" FontSize="16" Foreground="#E0E0E0"/>
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="100"/>
@@ -265,7 +265,7 @@
                         </Grid>
 
                         <TextBlock Text="?깆옣 / 蹂댁긽 / ?λ퉬" FontWeight="SemiBold" Margin="0,0,0,10"
-                                   FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic" FontSize="20" Foreground="#E0E0E0"/>
+                                   FontFamily="{StaticResource GmarketSansBold}" FontSize="20" Foreground="#E0E0E0"/>
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="170"/>
@@ -382,7 +382,7 @@
                 <Border x:Name="TechCard" Style="{StaticResource CardStyle}" Visibility="Visible">
                     <StackPanel>
                         <TextBlock Text="諛고? 湲곗닠" Style="{StaticResource CardHeaderStyle}"
-                                   FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic"/>
+                                   FontFamily="{StaticResource GmarketSansBold}"/>
 
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
@@ -490,7 +490,7 @@
                 <Border x:Name="QuoteCard" Style="{StaticResource CardStyle}" Visibility="Collapsed">
                     <StackPanel>
                         <TextBlock Text="???/ 硫붾떖" Style="{StaticResource CardHeaderStyle}"
-                                   FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic"/>
+                                   FontFamily="{StaticResource GmarketSansBold}"/>
 
                         <TextBlock Text="Dialogue Hashes" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
                         <Grid Margin="0,0,0,14">

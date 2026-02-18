@@ -91,7 +91,7 @@
                 <Grid Grid.Row="0" Margin="0,0,0,16">
                     <TextBlock Text="캐릭터 리스트"
                                FontSize="20"
-                               FontFamily="G마켓 산스 TTF Bold , Malgun Gothic"
+                               FontFamily="{StaticResource GmarketSansBold}"
                                FontWeight="Bold"
                                VerticalAlignment="Center"
                                Foreground="#1F1F1F"/>
@@ -242,7 +242,7 @@
                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
                             <!-- 이름 행: 이름 TextBox만 표시 -->
                             <TextBox Text="{Binding SelectedCharacter.Name, UpdateSourceTrigger=PropertyChanged}"
-                                     FontSize="28" FontWeight="Bold" FontFamily="G마켓 산스 TTF Bold, Malgun Gothic"
+                                     FontSize="28" FontWeight="Bold" FontFamily="{StaticResource GmarketSansBold}"
                                      Background="Transparent" BorderThickness="0" Foreground="#1F1F1F"
                                      VerticalAlignment="Center"
                                      Margin="0,0,0,8"/>
@@ -631,7 +631,7 @@
                                      Background="Transparent" BorderThickness="0"
                                      TextWrapping="Wrap" AcceptsReturn="True"
                                      FontSize="14" Foreground="#1F1F1F"
-                                     FontFamily="G마켓 산스 TTF Medium, Malgun Gothic"
+                                     FontFamily="{StaticResource GmarketSansMedium}"
                                      MinHeight="100" MaxHeight="180"
                                      VerticalScrollBarVisibility="Auto"
                                      HorizontalScrollBarVisibility="Disabled"

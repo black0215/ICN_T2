@@ -17,7 +17,7 @@
 
             <!-- 1. Puni Gold Title Style -->
             <Style x:Key="PuniGoldTitle" TargetType="TextBlock">
-                <Setter Property="FontFamily" Value="G마켓 산스 TTF Bold, ONE Mobile POP, Malgun Gothic, Segoe UI"/>
+                <Setter Property="FontFamily" Value="{StaticResource PuniFontMain}"/>
                 <Setter Property="FontSize" Value="48"/>
                 <Setter Property="FontWeight" Value="Bold"/>
                 <Setter Property="Effect">
@@ -49,7 +49,7 @@
                 <!-- Narrower Padding -->
                 <Setter Property="Margin" Value="0,0,0,8"/>
                 <Setter Property="Foreground" Value="#1A1C1E"/>
-                <Setter Property="FontFamily" Value="G마켓 산스 TTF Bold, ONE Mobile POP, Malgun Gothic"/>
+                <Setter Property="FontFamily" Value="{StaticResource PuniFontMain}"/>
                 <Setter Property="FontSize" Value="16"/>
                 <!-- Slightly Smaller font for narrow feel -->
                 <Setter Property="Cursor" Value="Hand"/>
@@ -167,7 +167,7 @@
                                 <TextBlock Text="{Binding Title}"
                                            HorizontalAlignment="Center" VerticalAlignment="Bottom"
                                            TextAlignment="Center"
-                                           FontFamily="G마켓 산스 TTF bold, Malgun Gothic" FontWeight="Bold" FontSize="12"
+                                           FontFamily="{StaticResource PuniFontMain}" FontWeight="Bold" FontSize="12"
                                            Margin="0,0,0,8"
                                            LineHeight="14"
                                            TextOptions.TextFormattingMode="Display"
@@ -271,7 +271,7 @@
             <Style x:Key="PuniButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="{StaticResource PuniYellowBrush}"/>
                 <Setter Property="Foreground" Value="#1A1C1E"/>
-                <Setter Property="FontFamily" Value="G마켓 산스 TTF Bold"/>
+                <Setter Property="FontFamily" Value="{StaticResource GmarketSansBold}"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="Padding" Value="25,12"/>
                 <Setter Property="Cursor" Value="Hand"/>
@@ -316,7 +316,7 @@
             <Style x:Key="PuniCancelButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="Foreground" Value="#666"/>
-                <Setter Property="FontFamily" Value="G마켓 산스 TTF Bold"/>
+                <Setter Property="FontFamily" Value="{StaticResource GmarketSansBold}"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="Padding" Value="25,12"/>
                 <Setter Property="Cursor" Value="Hand"/>
@@ -602,7 +602,7 @@
                                                 </Grid.RowDefinitions>
 
                                                 <Grid Grid.Row="0" Margin="0,0,0,10">
-                                                    <TextBlock Text="보유한 프로젝트" FontSize="24" FontFamily="G마켓 산스 TTF Bold" Foreground="#1A1C1E" VerticalAlignment="Top"/>
+                                                    <TextBlock Text="보유한 프로젝트" FontSize="24" FontFamily="{StaticResource GmarketSansBold}" Foreground="#1A1C1E" VerticalAlignment="Top"/>
                                                     <Button x:Name="BtnShowCreateForm" Content="+ NEW" HorizontalAlignment="Right"
                                                 Style="{StaticResource PuniButtonStyle}" Click="BtnShowCreateForm_Click" Margin="0,-10,10,10"/>
                                                 </Grid>
@@ -615,9 +615,9 @@
                                                                 <Border Margin="0,0,0,12" Padding="15" CornerRadius="15" Background="#30FFFFFF" BorderBrush="#15000000" BorderThickness="1">
                                                                     <Grid>
                                                                         <StackPanel>
-                                                                            <TextBlock Text="{Binding Name}" FontSize="19" FontFamily="G마켓 산스 TTF Bold" Foreground="#1A1C1E"/>
-                                                                            <TextBlock Text="{Binding Description}" FontSize="13" FontFamily="G마켓 산스 TTF Bold" Foreground="#777" Margin="0,5,0,0" TextWrapping="Wrap" MaxHeight="40" TextTrimming="CharacterEllipsis" Opacity="0.9"/>
-                                                                            <TextBlock Text="{Binding RootPath}" FontSize="11" FontFamily="G마켓 산스 TTF Bold" Foreground="#AAAAAA" Margin="0,8,0,0"/>
+                                                                            <TextBlock Text="{Binding Name}" FontSize="19" FontFamily="{StaticResource GmarketSansBold}" Foreground="#1A1C1E"/>
+                                                                            <TextBlock Text="{Binding Description}" FontSize="13" FontFamily="{StaticResource GmarketSansBold}" Foreground="#777" Margin="0,5,0,0" TextWrapping="Wrap" MaxHeight="40" TextTrimming="CharacterEllipsis" Opacity="0.9"/>
+                                                                            <TextBlock Text="{Binding RootPath}" FontSize="11" FontFamily="{StaticResource GmarketSansBold}" Foreground="#AAAAAA" Margin="0,8,0,0"/>
                                                                         </StackPanel>
                                                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                                             <Button Content="열기" Padding="12,5" Margin="0,0,10,0" Tag="{Binding RootPath}" Click="BtnOpenProject_Click"/>
@@ -637,7 +637,7 @@
                                                RenderOptions.BitmapScalingMode="HighQuality"
                                                HorizontalAlignment="Center" Margin="0,0,0,15"/>
                                                     <TextBlock Text="현재 생성된 프로젝트 폴더가 없습니다"
-                                                   FontSize="16" FontFamily="G마켓 산스 TTF Bold"
+                                                   FontSize="16" FontFamily="{StaticResource GmarketSansBold}"
                                                    Foreground="#888" HorizontalAlignment="Center"/>
                                                 </StackPanel>
                                             </Grid>
@@ -646,18 +646,18 @@
                                             <Grid x:Name="CreateProjectForm" Margin="30" Visibility="Collapsed">
                                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                                     <StackPanel>
-                                                        <TextBlock Text="새 프로젝트 생성" FontSize="26" FontFamily="G마켓 산스 TTF Bold" Foreground="#1A1C1E" Margin="0,0,0,25"/>
+                                                        <TextBlock Text="새 프로젝트 생성" FontSize="26" FontFamily="{StaticResource GmarketSansBold}" Foreground="#1A1C1E" Margin="0,0,0,25"/>
 
-                                                        <TextBlock Text="프로젝트 이름" FontSize="16" FontFamily="G마켓 산스 TTF Bold" Foreground="#1A1C1E" Margin="0,0,0,5"/>
+                                                        <TextBlock Text="프로젝트 이름" FontSize="16" FontFamily="{StaticResource GmarketSansBold}" Foreground="#1A1C1E" Margin="0,0,0,5"/>
                                                         <Border CornerRadius="10" Background="#20FFFFFF" BorderBrush="#30000000" BorderThickness="1" Margin="0,0,0,20">
                                                             <TextBox x:Name="TxtProjName" Padding="12" Background="Transparent" BorderThickness="0"/>
                                                         </Border>
 
                                                         <!-- Base Game Type Selection -->
-                                                        <TextBlock Text="베이스 게임 타입" FontSize="16" FontFamily="G마켓 산스 TTF Bold" Foreground="#1A1C1E" Margin="0,0,0,10"/>
+                                                        <TextBlock Text="베이스 게임 타입" FontSize="16" FontFamily="{StaticResource GmarketSansBold}" Foreground="#1A1C1E" Margin="0,0,0,10"/>
                                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                                                            <RadioButton x:Name="RbVanilla" x:FieldModifier="public" Content="바닐라 (샘플 데이터 사용)" IsChecked="True" Margin="0,0,20,0" FontFamily="G마켓 산스 TTF Bold"/>
-                                                            <RadioButton x:Name="RbModded" x:FieldModifier="public" Content="모딩본 (경로 직접 지정)" FontFamily="G마켓 산스 TTF Bold"/>
+                                                            <RadioButton x:Name="RbVanilla" x:FieldModifier="public" Content="바닐라 (샘플 데이터 사용)" IsChecked="True" Margin="0,0,20,0" FontFamily="{StaticResource GmarketSansBold}"/>
+                                                            <RadioButton x:Name="RbModded" x:FieldModifier="public" Content="모딩본 (경로 직접 지정)" FontFamily="{StaticResource GmarketSansBold}"/>
                                                         </StackPanel>
 
                                                         <!-- Conditional Game Path Section -->
@@ -672,7 +672,7 @@
                                                                     </Style.Triggers>
                                                                 </Style>
                                                             </StackPanel.Style>
-                                                            <TextBlock Text="베이스 게임 경로" FontSize="16" FontFamily="G마켓 산스 TTF Bold" Foreground="#1A1C1E" Margin="0,0,0,5"/>
+                                                            <TextBlock Text="베이스 게임 경로" FontSize="16" FontFamily="{StaticResource GmarketSansBold}" Foreground="#1A1C1E" Margin="0,0,0,5"/>
                                                             <Grid Margin="0,0,0,20">
                                                                 <Border CornerRadius="10" Background="#20FFFFFF" BorderBrush="#30000000" BorderThickness="1">
                                                                     <TextBox x:Name="TxtGamePath" Padding="12" Background="Transparent" BorderThickness="0"/>
@@ -682,7 +682,7 @@
                                                         </StackPanel>
 
                                                         <!-- Description -->
-                                                        <TextBlock Text="프로젝트 설명 (선택)" FontSize="16" FontFamily="G마켓 산스 TTF Bold" Foreground="#1A1C1E" Margin="0,0,0,5"/>
+                                                        <TextBlock Text="프로젝트 설명 (선택)" FontSize="16" FontFamily="{StaticResource GmarketSansBold}" Foreground="#1A1C1E" Margin="0,0,0,5"/>
                                                         <Border CornerRadius="10" Background="#20FFFFFF" BorderBrush="#30000000" BorderThickness="1" Margin="0,0,0,25">
                                                             <TextBox x:Name="TxtProjDesc" Padding="12" Height="100" TextWrapping="Wrap" AcceptsReturn="True" Background="Transparent" BorderThickness="0"/>
                                                         </Border>

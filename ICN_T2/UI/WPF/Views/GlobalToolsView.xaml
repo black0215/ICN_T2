@@ -1,0 +1,91 @@
+<UserControl x:Class="ICN_T2.UI.WPF.Views.GlobalToolsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:viewModels="clr-namespace:ICN_T2.UI.WPF.ViewModels"
+             xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
+             mc:Ignorable="d"
+             d:DesignHeight="640"
+             d:DesignWidth="980"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <Style x:Key="GlobalToolButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#36FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#24FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="18"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#4AFFFFFF"/>
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="#65FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#2EFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="14">
+        <Border CornerRadius="22"
+                Background="#14FFFFFF"
+                BorderBrush="#24FFFFFF"
+                BorderThickness="1"
+                Padding="14">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding GlobalTools}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <primitives:UniformGrid Columns="3"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type viewModels:GlobalToolViewModel}">
+                            <Button Style="{StaticResource GlobalToolButtonStyle}"
+                                    Command="{Binding Command}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Border Width="64"
+                                            Height="64"
+                                            CornerRadius="32"
+                                            Background="#26FFFFFF"
+                                            BorderBrush="#24FFFFFF"
+                                            BorderThickness="1">
+                                        <Image Source="{Binding IconPath}"
+                                               Width="30"
+                                               Height="30"
+                                               Stretch="Uniform"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding Title}"
+                                               Margin="0,12,0,0"
+                                               HorizontalAlignment="Center"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="#1A1C1E"/>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

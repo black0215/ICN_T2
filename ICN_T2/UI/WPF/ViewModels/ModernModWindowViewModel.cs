@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Disposables;
@@ -10,6 +11,8 @@ using ICN_T2.UI.WPF.Services;
 using System.Linq;
 using System.IO;
 using ICN_T2.Logic.Level5.Binary;
+using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace ICN_T2.UI.WPF.ViewModels
 {
@@ -98,6 +101,7 @@ namespace ICN_T2.UI.WPF.ViewModels
         public ReactiveCommand<Project, Unit> OpenProjectCommand { get; }
         public ReactiveCommand<Project, Unit> DeleteProjectCommand { get; }
         public ReactiveCommand<Unit, Unit> ExtractAydCommand { get; }
+        public ReactiveCommand<Unit, Unit> ExtractAydBatchCommand { get; }
 
         // ----------------------------------------------------------------------------------
         // [Constructor]
@@ -193,6 +197,7 @@ namespace ICN_T2.UI.WPF.ViewModels
                 });
 
             ExtractAydCommand = ReactiveCommand.Create(ExtractAyd);
+            ExtractAydBatchCommand = ReactiveCommand.CreateFromTask(ExtractAydBatchAsync);
 
             // 초기 프로젝트 목록 로드
             RefreshProjectList();
@@ -315,6 +320,10 @@ namespace ICN_T2.UI.WPF.ViewModels
                 title: "AYD Extractor",
                 iconPath: "pack://application:,,,/ICN_T2;component/Resources/UI%20icon/Tool.png",
                 command: ExtractAydCommand));
+            GlobalTools.Add(new GlobalToolViewModel(
+                title: "AYD Fast Batch",
+                iconPath: "pack://application:,,,/ICN_T2;component/Resources/UI%20icon/Tool.png",
+                command: ExtractAydBatchCommand));
         }
 
         private void ExtractAyd()
@@ -345,45 +354,10 @@ namespace ICN_T2.UI.WPF.ViewModels
 
                 var loader = new AydLoader();
                 var data = loader.Load(File.ReadAllBytes(openDialog.FileName));
-
-                string outputRoot = Path.GetFullPath(outputDialog.SelectedPath);
-                string outputRootPrefix = outputRoot.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-                    ? outputRoot
-                    : outputRoot + Path.DirectorySeparatorChar;
-
-                int extractedCount = 0;
-                for (int i = 0; i < data.Files.Count; i++)
-                {
-                    var file = data.Files[i];
-
-                    string relativePath = string.IsNullOrWhiteSpace(file.FileName)
-                        ? $"file_{i + 1:D4}.bin"
-                        : file.FileName.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
-
-                    string outputPath = Path.GetFullPath(Path.Combine(outputRoot, relativePath));
-                    if (!outputPath.StartsWith(outputRootPrefix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        string safeExtension = Path.GetExtension(relativePath);
-                        if (string.IsNullOrWhiteSpace(safeExtension))
-                        {
-                            safeExtension = ".bin";
-                        }
-
-                        outputPath = Path.Combine(outputRoot, $"file_{i + 1:D4}{safeExtension}");
-                    }
-
-                    string? outputDirectory = Path.GetDirectoryName(outputPath);
-                    if (!string.IsNullOrWhiteSpace(outputDirectory))
-                    {
-                        Directory.CreateDirectory(outputDirectory);
-                    }
-
-                    File.WriteAllBytes(outputPath, file.Data);
-                    extractedCount++;
-                }
+                int extractedCount = WriteExtractedFiles(outputDialog.SelectedPath, data.Files);
 
                 System.Windows.MessageBox.Show(
-                    $"AYD 추출이 완료되었습니다.\n파일 수: {extractedCount}\n출력 경로: {outputRoot}",
+                    $"AYD 추출이 완료되었습니다.\n파일 수: {extractedCount}\n출력 경로: {Path.GetFullPath(outputDialog.SelectedPath)}",
                     "AYD Extractor",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Information);
@@ -396,6 +370,158 @@ namespace ICN_T2.UI.WPF.ViewModels
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Error);
             }
+        }
+
+        private async System.Threading.Tasks.Task ExtractAydBatchAsync()
+        {
+            try
+            {
+                using var inputDialog = new System.Windows.Forms.FolderBrowserDialog
+                {
+                    Description = "AYD 파일이 있는 원본 폴더를 선택하세요."
+                };
+
+                if (inputDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK ||
+                    string.IsNullOrWhiteSpace(inputDialog.SelectedPath))
+                {
+                    return;
+                }
+
+                using var outputDialog = new System.Windows.Forms.FolderBrowserDialog
+                {
+                    Description = "일괄 추출 결과를 저장할 폴더를 선택하세요."
+                };
+
+                if (outputDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK ||
+                    string.IsNullOrWhiteSpace(outputDialog.SelectedPath))
+                {
+                    return;
+                }
+
+                string inputRoot = Path.GetFullPath(inputDialog.SelectedPath);
+                string outputRoot = Path.GetFullPath(outputDialog.SelectedPath);
+                string[] aydFiles = Directory.GetFiles(inputRoot, "*.ayd", SearchOption.AllDirectories);
+
+                if (aydFiles.Length == 0)
+                {
+                    System.Windows.MessageBox.Show(
+                        "선택한 폴더에서 .ayd 파일을 찾지 못했습니다.",
+                        "AYD Fast Batch",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                    return;
+                }
+
+                var watch = Stopwatch.StartNew();
+                int successCount = 0;
+                int failedCount = 0;
+                int totalExtractedFiles = 0;
+                var failedSamples = new ConcurrentBag<string>();
+
+                await System.Threading.Tasks.Task.Run(() =>
+                {
+                    foreach (string aydPath in aydFiles)
+                    {
+                        try
+                        {
+                            var loader = new AydLoader();
+                            var data = loader.Load(File.ReadAllBytes(aydPath));
+
+                            string relativeAydPath = Path.GetRelativePath(inputRoot, aydPath);
+                            string? relativeAydDir = Path.GetDirectoryName(relativeAydPath);
+                            string fileNameOnly = Path.GetFileNameWithoutExtension(relativeAydPath);
+
+                            string perAydOutputRoot = string.IsNullOrWhiteSpace(relativeAydDir)
+                                ? Path.Combine(outputRoot, fileNameOnly)
+                                : Path.Combine(outputRoot, relativeAydDir, fileNameOnly);
+
+                            int written = WriteExtractedFiles(perAydOutputRoot, data.Files);
+                            System.Threading.Interlocked.Add(ref totalExtractedFiles, written);
+                            System.Threading.Interlocked.Increment(ref successCount);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Threading.Interlocked.Increment(ref failedCount);
+                            if (failedSamples.Count < 10)
+                            {
+                                failedSamples.Add($"{Path.GetFileName(aydPath)}: {ex.Message}");
+                            }
+                        }
+                    }
+                });
+
+                watch.Stop();
+
+                string failedPreview = failedSamples.Count == 0
+                    ? string.Empty
+                    : "\n\n실패 샘플:\n- " + string.Join("\n- ", failedSamples.ToArray());
+
+                System.Windows.MessageBox.Show(
+                    $"AYD 일괄 추출 완료\n" +
+                    $"입력 AYD: {aydFiles.Length}\n" +
+                    $"성공: {successCount}\n" +
+                    $"실패: {failedCount}\n" +
+                    $"생성 파일: {totalExtractedFiles}\n" +
+                    $"출력 경로: {outputRoot}\n" +
+                    $"소요 시간: {watch.Elapsed:hh\\:mm\\:ss}" +
+                    failedPreview,
+                    "AYD Fast Batch",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"AYD 일괄 추출 중 오류가 발생했습니다.\n{ex.Message}",
+                    "AYD Fast Batch",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private static int WriteExtractedFiles(string outputRootPath, IReadOnlyList<VirtualFile> files)
+        {
+            string outputRoot = Path.GetFullPath(outputRootPath);
+            Directory.CreateDirectory(outputRoot);
+
+            string outputRootPrefix = outputRoot.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                ? outputRoot
+                : outputRoot + Path.DirectorySeparatorChar;
+
+            int extractedCount = 0;
+            for (int i = 0; i < files.Count; i++)
+            {
+                var file = files[i];
+                string relativePath = string.IsNullOrWhiteSpace(file.FileName)
+                    ? $"file_{i + 1:D4}.bin"
+                    : file.FileName
+                        .Replace('/', Path.DirectorySeparatorChar)
+                        .Replace('\\', Path.DirectorySeparatorChar)
+                        .TrimStart(Path.DirectorySeparatorChar);
+
+                string outputPath = Path.GetFullPath(Path.Combine(outputRoot, relativePath));
+                if (!outputPath.StartsWith(outputRootPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    string safeExtension = Path.GetExtension(relativePath);
+                    if (string.IsNullOrWhiteSpace(safeExtension))
+                    {
+                        safeExtension = ".bin";
+                    }
+
+                    outputPath = Path.Combine(outputRoot, $"file_{i + 1:D4}{safeExtension}");
+                }
+
+                string? outputDirectory = Path.GetDirectoryName(outputPath);
+                if (!string.IsNullOrWhiteSpace(outputDirectory))
+                {
+                    Directory.CreateDirectory(outputDirectory);
+                }
+
+                File.WriteAllBytes(outputPath, file.Data);
+                extractedCount++;
+            }
+
+            return extractedCount;
         }
 
         private static string NormalizeHeaderText(string? text)

@@ -3,6 +3,17 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ============================================ -->
+    <!-- ?뙵 FONTS                                     -->
+    <!-- ============================================ -->
+    <FontFamily x:Key="GmarketSansBold">pack://application:,,,/ICN_T2;component/Resources/Fonts/GmarketSansTTFBold.ttf#Gmarket Sans TTF</FontFamily>
+    <FontFamily x:Key="GmarketSansMedium">pack://application:,,,/ICN_T2;component/Resources/Fonts/GmarketSansTTFMedium.ttf#Gmarket Sans TTF</FontFamily>
+    <FontFamily x:Key="GmarketSansLight">pack://application:,,,/ICN_T2;component/Resources/Fonts/GmarketSansTTFLight.ttf#Gmarket Sans TTF</FontFamily>
+    <FontFamily x:Key="ONEMobilePOP">pack://application:,,,/ICN_T2;component/Resources/Fonts/ONEMobilePOP.ttf#ONE Mobile POP</FontFamily>
+    
+    <!-- Fallback Composite Font -->
+    <FontFamily x:Key="PuniFontMain">pack://application:,,,/ICN_T2;component/Resources/Fonts/GmarketSansTTFBold.ttf#Gmarket Sans TTF, pack://application:,,,/ICN_T2;component/Resources/Fonts/ONEMobilePOP.ttf#ONE Mobile POP, Malgun Gothic, Segoe UI</FontFamily>
+
+    <!-- ============================================ -->
     <!-- ?뙵 SAKURA SOFT COLOR PALETTE                  -->
     <!-- ============================================ -->
 
