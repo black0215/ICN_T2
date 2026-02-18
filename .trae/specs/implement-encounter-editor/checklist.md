@@ -1,3 +1,0 @@
-- [x] Selecting a Map populates the "Table" dropdown (e.g., "Table 1", "Table 2").
-- [x] Selecting a Table populates the "Slots" list with Yokai names and levels.
-- [x] No crashes occur when selecting maps or tables.

@@ -134,9 +134,12 @@ StyleCopReport.xml
 *.bak
 *.tmp
 
-# VS Code
+# VS Code / IDEs
 .vscode/
 .history/
+.trae/
+.cursor/
+.claude/
 
 # Backup and Legacy
 sample/
