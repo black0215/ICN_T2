@@ -7,29 +7,68 @@
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);..\Legacy_Forms_Backup\**;..\Albatross-legacy\**;..\_backup_visual_hierarchy_*\**;Forms\bak\**;Forms\Controls\bak\**;UI\WPF\_restore_backup_*\**;**\_backup_visual_hierarchy_*\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="..\Legacy_Forms_Backup\**" />
+    <Compile Remove="..\Albatross-legacy\**" />
+    <Compile Remove="..\_backup_visual_hierarchy_*\**" />
+    <Compile Remove="Forms\bak\**" />
+    <Compile Remove="Forms\Controls\bak\**" />
+    <Compile Remove="UI\WPF\_restore_backup_*\**" />
+    <Compile Remove="**\_backup_visual_hierarchy_*\**" />
     <Compile Remove="Level5\**" />
     <Compile Remove="Logic\Binary\**" />
-    <Compile Remove="UI\WPF\Controls\**" />
     <Compile Remove="YokaiWatch\Logic\**" />
     <!-- Guard against stale local build artifacts being picked up as source -->
     <Compile Remove="artifacts\**" />
     <Compile Remove="**\*_wpftmp.csproj" />
+    <EmbeddedResource Remove="..\Legacy_Forms_Backup\**" />
+    <EmbeddedResource Remove="..\Albatross-legacy\**" />
+    <EmbeddedResource Remove="..\_backup_visual_hierarchy_*\**" />
+    <EmbeddedResource Remove="Forms\bak\**" />
+    <EmbeddedResource Remove="Forms\Controls\bak\**" />
+    <EmbeddedResource Remove="UI\WPF\_restore_backup_*\**" />
+    <EmbeddedResource Remove="**\_backup_visual_hierarchy_*\**" />
     <EmbeddedResource Remove="Level5\**" />
     <EmbeddedResource Remove="Logic\Binary\**" />
-    <EmbeddedResource Remove="UI\WPF\Controls\**" />
     <EmbeddedResource Remove="YokaiWatch\Logic\**" />
     <EmbeddedResource Remove="artifacts\**" />
+    <None Remove="..\Legacy_Forms_Backup\**" />
+    <None Remove="..\Albatross-legacy\**" />
+    <None Remove="..\_backup_visual_hierarchy_*\**" />
+    <None Remove="Forms\bak\**" />
+    <None Remove="Forms\Controls\bak\**" />
+    <None Remove="UI\WPF\_restore_backup_*\**" />
+    <None Remove="**\_backup_visual_hierarchy_*\**" />
     <None Remove="Level5\**" />
     <None Remove="Logic\Binary\**" />
-    <None Remove="UI\WPF\Controls\**" />
     <None Remove="YokaiWatch\Logic\**" />
     <None Remove="artifacts\**" />
     <None Remove="**\*_wpftmp.csproj" />
-    <Page Remove="UI\WPF\Controls\**" />
+    <Page Remove="..\Legacy_Forms_Backup\**" />
+    <Page Remove="..\Albatross-legacy\**" />
+    <Page Remove="..\_backup_visual_hierarchy_*\**" />
+    <Page Remove="Forms\bak\**" />
+    <Page Remove="Forms\Controls\bak\**" />
+    <Page Remove="UI\WPF\_restore_backup_*\**" />
+    <Page Remove="**\_backup_visual_hierarchy_*\**" />
     <Page Remove="artifacts\**" />
+    <Resource Remove="..\Legacy_Forms_Backup\**" />
+    <Resource Remove="..\Albatross-legacy\**" />
+    <Resource Remove="..\_backup_visual_hierarchy_*\**" />
+    <Resource Remove="Forms\bak\**" />
+    <Resource Remove="Forms\Controls\bak\**" />
+    <Resource Remove="UI\WPF\_restore_backup_*\**" />
+    <Resource Remove="**\_backup_visual_hierarchy_*\**" />
+    <Content Remove="..\Legacy_Forms_Backup\**" />
+    <Content Remove="..\Albatross-legacy\**" />
+    <Content Remove="..\_backup_visual_hierarchy_*\**" />
+    <Content Remove="Forms\bak\**" />
+    <Content Remove="Forms\Controls\bak\**" />
+    <Content Remove="UI\WPF\_restore_backup_*\**" />
+    <Content Remove="**\_backup_visual_hierarchy_*\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -87,6 +126,13 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Update="UI\WPF\Views\Controls\SkillSelector.xaml.cs">
+      <DependentUpon>SkillSelector.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="UI\WPF\Converters\VisibilityConverters.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>
@@ -94,6 +140,21 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Update="Themes\GlassWindowsTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="UI\WPF\Themes\PuniPuniTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="UI\WPF\Views\Controls\SkillSelector.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
 
 </Project>
