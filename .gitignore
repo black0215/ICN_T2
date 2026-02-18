@@ -138,6 +138,12 @@ StyleCopReport.xml
 .vscode/
 .history/
 
+# Backup and Legacy
+sample/
+Albatross-legacy/
+Legacy_Forms_Backup/
+**/bak/
+
 # Large files
 Samples/*.fa
 
