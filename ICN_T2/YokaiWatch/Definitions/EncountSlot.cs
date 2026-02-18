@@ -2,9 +2,10 @@ namespace ICN_T2.YokaiWatch.Definitions
 {
     public class EncountSlot
     {
-        public int ParamHash { get; set; }  // ¾î¶² ¿ä±«ÀÎ°¡
-        public int Level { get; set; }      // ÃÖ¼Ò ·¹º§
-        public int MaxLevel { get; set; }   // ÃÖ´ë ·¹º§
-        public int Weight { get; set; }     // µîÀå È®·ü(°¡ÁßÄ¡)
+        public int ParamHash { get; set; }  // ì–´ë–¤ ìš”ê´´ì¸ê°€
+        public int Level { get; set; }      // ìµœì†Œ ë ˆë²¨
+        public int MaxLevel { get; set; }   // ìµœëŒ€ ë ˆë²¨
+        public int Weight { get; set; }     // ë“±ì¥ í™•ë¥ (ê°€ì¤‘ì¹˜)
+        public int Offset { get; set; }
     }
 }

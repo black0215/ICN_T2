@@ -6,16 +6,16 @@ namespace ICN_T2.YokaiWatch.Games.YW2.Logic
     public class Battlecommand : BattleCommand
     {
         public new int BattleCommandHash { get => base.BattleCommandHash; set => base.BattleCommandHash = value; }
-        public new int NameHash { get => base.NameHash; set => base.NameHash = value; }
+        public new int NameHash { get => base.NameHash; set => base.NameHash = value; } //이름
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
         public int Unk3 { get; set; }
-        public new int PowerMultiplicator { get => base.PowerMultiplicator; set => base.PowerMultiplicator = value; }
+        public new int PowerMultiplicator { get => base.PowerMultiplicator; set => base.PowerMultiplicator = value; } //여기 부분이 타수임. 발견 2026/0216
         public int Unk4 { get; set; }
         public int Unk5 { get; set; }
         public int Unk6 { get; set; }
         public new int TextureHash { get => base.TextureHash; set => base.TextureHash = value; }
-        public new int SkillConfigHash { get => base.SkillConfigHash; set => base.SkillConfigHash = value; }
+        public new int SkillConfigHash { get => base.SkillConfigHash; set => base.SkillConfigHash = value; } //필살기 해쉬
         public int Unk7 { get; set; }
         public int Unk8 { get; set; }
         public int Unk9 { get; set; }

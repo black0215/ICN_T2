@@ -137,3 +137,6 @@ StyleCopReport.xml
 # VS Code
 .vscode/
 .history/
+
+# Large files
+Samples/*.fa

@@ -92,4 +92,26 @@ namespace ICN_T2.Logic.Level5.Image
             return Color.FromArgb(a, r, g, b);
         }
     }
+
+    public class ETC1 : IColorFormat
+    {
+        public string Name => "ETC1";
+
+        public int Size => 4;
+
+        public byte[] Encode(Color color)
+        {
+            // Not implemented
+            return null!;
+        }
+
+        public Color Decode(byte[] data)
+        {
+            int r = data[0];
+            int g = data[1];
+            int b = data[2];
+            int a = data[3];
+            return Color.FromArgb(a, r, g, b);
+        }
+    }
 }

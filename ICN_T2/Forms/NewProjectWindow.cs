@@ -51,20 +51,11 @@ namespace ICN_T2.Forms
 
         private void RbType_CheckedChanged(object sender, EventArgs e)
         {
-            // Modded: Enable input, Vanilla: Disable input
-            bool isModded = rbModded.Checked;
-            txtPath.Enabled = isModded;
-            btnBrowse.Enabled = isModded;
-
-            if (isModded)
-            {
-                txtPath.ForeColor = Color.White;
-            }
-            else
-            {
-                txtPath.ForeColor = Color.Gray;
-                txtPath.Clear(); // Clear input if Vanilla
-            }
+            // Both Modded and Vanilla require a Base Game Path now.
+            // We just ensure the controls are enabled.
+            txtPath.Enabled = true;
+            btnBrowse.Enabled = true;
+            txtPath.ForeColor = Color.White;
         }
 
         private void TxtName_TextChanged(object sender, EventArgs e)
@@ -84,19 +75,19 @@ namespace ICN_T2.Forms
                     return;
                 }
 
-                // If Modded, enforce path
-                if (rbModded.Checked && string.IsNullOrWhiteSpace(txtPath.Text))
+                // Enforce path for BOTH Modded and Vanilla
+                if (string.IsNullOrWhiteSpace(txtPath.Text))
                 {
-                    MessageBox.Show("올바른 romFs 폴더 위치를 지정해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("원본 게임 파일(romFs) 폴더 위치를 지정해주세요.\n(예: sample 폴더)", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                // If Vanilla, we pass empty path (handled by ProjectManager now)
-                string path = rbModded.Checked ? txtPath.Text : string.Empty;
+                // Path is always required now
+                string path = txtPath.Text;
 
                 string gameVersion = cmbGameVersion.SelectedItem?.ToString() ?? "YW2";
                 CreatedProject = ProjectManager.CreateProject(txtName.Text, path, txtDesc.Text, gameVersion);
-                
+
                 MessageBox.Show($"프로젝트 '{CreatedProject.Name}'이(가) 성공적으로 생성되었습니다!", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 this.DialogResult = DialogResult.OK;
                 this.Close();

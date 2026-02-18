@@ -1,11 +1,14 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reactive.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using ICN_T2.Logic.Project;
 using ICN_T2.UI.WPF.ViewModels;
@@ -14,6 +17,14 @@ using ICN_T2.YokaiWatch.Games;
 using ICN_T2.YokaiWatch.Games.YW2;
 using ICN_T2.UI.WPF.Animations;
 using ICN_T2.UI.WPF.Services;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
+using ICN_T2.UI.WPF.Effects;
+using ICN_T2.UI.WPF.ViewModels.Contracts;
+using System.Linq;
+using System.Windows.Input;
+using Button = System.Windows.Controls.Button;
+using Point = System.Windows.Point;
 
 namespace ICN_T2.UI.WPF
 {
@@ -25,6 +36,36 @@ namespace ICN_T2.UI.WPF
 
         // Rx 기반 애니메이션 서비스
         private readonly AnimationService _animationService = new AnimationService();
+
+        // [Phase 5] Glass Refraction Shader
+        private GlassRefractionEffect? _glassRefractionEffect;
+        private readonly Dictionary<Button, GlassRefractionEffect> _buttonRefractionEffects = new Dictionary<Button, GlassRefractionEffect>();
+        private readonly Dictionary<FrameworkElement, GlassRefractionEffect> _moddingMedalRefractionEffects = new Dictionary<FrameworkElement, GlassRefractionEffect>();
+        private readonly Dictionary<FrameworkElement, Effect> _toolPanelRefractionEffects = new Dictionary<FrameworkElement, Effect>();
+        private readonly Dictionary<FrameworkElement, GlassRefractionEffect> _toolInteractiveRefractionEffects = new Dictionary<FrameworkElement, GlassRefractionEffect>();
+        private VisualBrush? _toolPanelBackdropBrush;
+        private ImageBrush? _glassNormalMapBrush;
+        private GlassRefractionEffect? _fixedBackdropRefractionEffect;
+        private GlassRefractionEffect? _tintLayerRefractionEffect;  // 틴트 레이어용 왜곡 효과
+        private GlassRefractionEffect? _blurOverlayRefractionEffect;  // 블러 오버레이용 왜곡 효과 (약하게)
+        private GlassRefractionEffect? _sidebarRefractionEffect;  // 사이드바 Liquid Glass 효과
+        private GlassRefractionEffect? _bookRefractionEffect; // 책 배경 전용 굴절 효과
+        private FrameworkElement? _bookGlassBackplate;
+        private double _shaderTime = 0.0;
+        private bool _isBookMarginAnimationRunning;
+        private System.Threading.CancellationTokenSource? _activeToolTransitionCts;
+        private int _activeToolTransitionVersion;
+        private DateTime _bookOpenCompletedAtUtc = DateTime.MinValue;
+        private DateTime _lastSteppedPathLogAtUtc = DateTime.MinValue;
+        private bool _toolPanelAttachRetryPending;
+        private int _toolPanelAttachRetryCount;
+        private const int ToolPanelAttachMaxRetries = 6;
+        private bool _isToolLayoutLocked;
+        private bool _isToolLayoutFinalized;
+        private System.Windows.Size _lastToolLayoutWindowSize = System.Windows.Size.Empty;
+        private readonly ObservableCollection<SaveSelectionItemViewModel> _saveSelectionItems = new ObservableCollection<SaveSelectionItemViewModel>();
+        private readonly Dictionary<string, object> _saveParticipantByToolId = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+
 
         // === Navigation Stack System (New) ===
         public enum NavState
@@ -42,20 +83,98 @@ namespace ICN_T2.UI.WPF
             public string? MethodName { get; set; } // 어디서 호출되었는지 기록
         }
 
+        private sealed class SaveSelectionItemViewModel : System.ComponentModel.INotifyPropertyChanged
+        {
+            private bool _isChecked = true;
+            private string? _errorMessage;
+
+            public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+            public string ToolId { get; init; } = "";
+            public string ToolDisplayName { get; init; } = "";
+            public string ChangeId { get; init; } = "";
+            public string DisplayName { get; init; } = "";
+            public string? Description { get; init; }
+
+            public bool IsChecked
+            {
+                get => _isChecked;
+                set
+                {
+                    if (_isChecked == value) return;
+                    _isChecked = value;
+                    PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsChecked)));
+                }
+            }
+
+            public string? ErrorMessage
+            {
+                get => _errorMessage;
+                set
+                {
+                    if (string.Equals(_errorMessage, value, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
+                    _errorMessage = value;
+                    PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(ErrorMessage)));
+                }
+            }
+        }
+
         private Stack<NavItem> _navStack = new Stack<NavItem>();
+        private bool _suppressSidebarNavCheckedEvents = true;
 
         public void NavigateTo(NavState target, object? context = null, [System.Runtime.CompilerServices.CallerMemberName] string? methodName = null)
         {
+            // [FIX] Ensure root state is in stack if navigating away from start for the first time
+            if (_navStack.Count == 0 && target != NavState.ProjectList)
+            {
+                _navStack.Push(new NavItem { State = NavState.ProjectList, MethodName = "AutoInit" });
+            }
+
             _navStack.Push(new NavItem { State = target, Context = context, MethodName = methodName });
             UpdateUI(target, context);
         }
 
         public void GoBack()
         {
-            if (_navStack.Count <= 1) return;
+            if (_navStack.Count <= 1)
+            {
+                // Defensive fallback: if UI is already in modding/tool state but stack got flattened,
+                // still allow back navigation to restore ProjectList.
+                bool toolWindowVisible =
+                    CharacterInfoContent?.Visibility == Visibility.Visible ||
+                    CharacterScaleContent?.Visibility == Visibility.Visible ||
+                    YokaiStatsContent?.Visibility == Visibility.Visible ||
+                    EncounterEditorContent?.Visibility == Visibility.Visible ||
+                    (_navStack.Count > 0 && _navStack.Peek().State == NavState.ToolWindow);
+
+                if (ProjectMenuContent?.Visibility == Visibility.Collapsed &&
+                    (ModdingMenuContent?.Visibility == Visibility.Visible || toolWindowVisible))
+                {
+                    _navStack.Clear();
+                    _navStack.Push(new NavItem { State = NavState.ProjectList, MethodName = "GoBackFallback" });
+
+                    if (toolWindowVisible)
+                    {
+                        HideAllToolContents();
+                    }
+
+                    TransitionBackToProjectList();
+                }
+
+                return;
+            }
 
             var current = _navStack.Pop();
             var previous = _navStack.Peek();
+            CancelRunningToolSelectionTransition(resetToModdingMenuState: false);
+            if (current.State == NavState.ToolWindow)
+            {
+                ResetToolLayoutSession("GoBack from ToolWindow");
+            }
 
             // [FIX] Layout State Management during Back Navigation
             if (previous.State == NavState.ModdingMenu)
@@ -68,7 +187,11 @@ namespace ICN_T2.UI.WPF
                 // [FIX] ToolCompact 해제: 모딩 메뉴에서는 compact 안 보여야 함
                 if (current.State == NavState.ToolWindow)
                 {
-                    AnimateToolCompactLayout(false);
+                    /* Compact 확장 로직 비활성화 (요청 사항):
+                     * 도구→모딩 복귀 시 MainContentPanel/MainContentRootGrid 마진 복원 애니메이션 사용 안 함.
+                     * 유지 이유: 히스토리 보존 / 재활성 대비.
+                     */
+                    // AnimateToolCompactLayout(false);
                 }
             }
             else if (previous.State == NavState.ProjectList)
@@ -81,7 +204,10 @@ namespace ICN_T2.UI.WPF
                 // [NEW] ToolCompact Layout 비활성화: ProjectList로 복귀하므로 일반 레이아웃으로 복원
                 if (current.State == NavState.ToolWindow)
                 {
-                    AnimateToolCompactLayout(false);
+                    /* Compact 확장 로직 비활성화 (요청 사항):
+                     * 도구→프로젝트 복귀에서도 동일하게 compact 마진 복원 로직을 사용하지 않음.
+                     */
+                    // AnimateToolCompactLayout(false);
                 }
 
                 // AnimateRiser 제거: ToolWindow에서 사용 안 함
@@ -116,6 +242,20 @@ namespace ICN_T2.UI.WPF
             var vm = btn.DataContext as ICN_T2.UI.WPF.ViewModels.ModdingToolViewModel;
             if (vm == null) return;
 
+            // Forward selection animation only:
+            // interrupt current forward transition and restart from stable modding-menu baseline.
+            // Also cancel any running RecoverFromSelection (back animation)
+            if (_recoverCts != null)
+            {
+                _recoverCts.Cancel();
+                _recoverCts.Dispose();
+                _recoverCts = null;
+            }
+            CancelRunningToolSelectionTransition(resetToModdingMenuState: true);
+            int transitionVersion = System.Threading.Interlocked.Increment(ref _activeToolTransitionVersion);
+            var cts = new System.Threading.CancellationTokenSource();
+            _activeToolTransitionCts = cts;
+
             // --- STEP 1: SETUP PROXY ---
             _activeTransitionButton = btn;
 
@@ -126,15 +266,19 @@ namespace ICN_T2.UI.WPF
             var proxyTxt = ProxyIconContainer.FindName("ProxyText") as System.Windows.Controls.TextBlock;
             if (proxyTxt != null) proxyTxt.Text = vm.Title;
 
-            ProxyIconContainer.Width = btn.ActualWidth;
-            ProxyIconContainer.Height = btn.ActualHeight;
+            // Keep the transition medal perfectly circular even if source button ratio changes.
+            double proxySize = Math.Max(1.0, Math.Min(btn.ActualWidth, btn.ActualHeight));
+            ProxyIconContainer.Width = proxySize;
+            ProxyIconContainer.Height = proxySize;
 
             // Get Positions relative to Root
             var rootGrid = VisualTreeHelper.GetParent(TransitionProxy) as UIElement;
             if (rootGrid == null) return;
 
             var btnTransform = btn.TransformToVisual(rootGrid);
-            var startPoint = btnTransform.Transform(new System.Windows.Point(0, 0));
+            var startPoint = btnTransform.Transform(new System.Windows.Point(
+                (btn.ActualWidth - proxySize) / 2.0,
+                (btn.ActualHeight - proxySize) / 2.0));
 
             // Initial Position
             TransitionProxy.Margin = new Thickness(startPoint.X, startPoint.Y, 0, 0);
@@ -148,17 +292,35 @@ namespace ICN_T2.UI.WPF
             transGroup.Children.Add(translateTrans);
             TransitionProxy.RenderTransform = transGroup;
 
-            // 프록시 아이콘/텍스트 세팅 후 원래 버튼 숨김
-            btn.Visibility = Visibility.Hidden;
+            // 프록시 아이콘/텍스트 세팅 후 원래 위치 요소를 즉시 숨겨 '붕 뜨는' 연출 고정
+            _activeTransitionOriginElement = ResolveTransitionOriginElement(btn);
+            SetTransitionOriginHidden(true);
 
             // Manual Trigger instead of Property Setter
             IsSelectionFinished = true;
-            await PlaySelectionAnimation();
+            try
+            {
+                await PlaySelectionAnimation(cts.Token, transitionVersion);
+            }
+            catch (OperationCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] PlaySelectionAnimation 취소됨 (forward interrupt)");
+            }
+            finally
+            {
+                if (transitionVersion == _activeToolTransitionVersion)
+                {
+                    _activeToolTransitionCts?.Dispose();
+                    _activeToolTransitionCts = null;
+                }
+            }
         }
 
         private async System.Threading.Tasks.Task TransitionToModdingMenu()
         {
             System.Diagnostics.Debug.WriteLine("[ModWindow] TransitionToModdingMenu 시작 - Rx 기반 전환됨 (한글)");
+            this.IsHitTestVisible = true;
+            CancelRunningToolSelectionTransition(resetToModdingMenuState: false);
             #region agent log
             try
             {
@@ -235,19 +397,16 @@ namespace ICN_T2.UI.WPF
             ModdingMenuContent.Opacity = 1;
             ModdingMenuContent.Visibility = Visibility.Visible;
             System.Windows.Controls.Panel.SetZIndex(ModdingMenuContent, AnimationConfig.ZIndex_ModdingMenuContent);
+            AttachBookRefractionEffect();
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                AttachBookRefractionEffect();
+                AttachModdingMedalRefractionEffects();
+            }, DispatcherPriority.Loaded);
 
             // [FIX] 애니메이션 초기화: 이전 애니메이션 제거 후 원래 위치로 명시적 설정
-            BookCover.BeginAnimation(FrameworkElement.MarginProperty, null);
-            ModdingMenuContent.BeginAnimation(FrameworkElement.MarginProperty, null);
-
-            var bookBaseMargin = new Thickness(AnimationConfig.Book_BaseMarginLeft, AnimationConfig.Book_BaseMarginTop, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom);
-            BookCover.Margin = bookBaseMargin;
-            ModdingMenuContent.Margin = new Thickness(
-                AnimationConfig.Book_BaseMarginLeft + AnimationConfig.Book_Open2OffsetX,
-                AnimationConfig.Book_BaseMarginTop + AnimationConfig.Book_Open2OffsetY,
-                AnimationConfig.Book_BaseMarginRight,
-                AnimationConfig.Book_BaseMarginBottom
-            );
+            _isBookMarginAnimationRunning = false;
+            SetBookLayoutMargins(CalculateBookLeftForProgress(0.0), clearAnimations: true);
 
             // Reset Transforms for Cover
             BookCover.RenderTransformOrigin = new System.Windows.Point(0.0, 0.5);
@@ -271,10 +430,17 @@ namespace ICN_T2.UI.WPF
 
             ModdingMenuButtons.Visibility = Visibility.Visible;
             ModdingMenuButtons.Opacity = 0;
+            ModdingMenuButtons.IsHitTestVisible = true;
+
+            // Ensure modding sidebar nav buttons stay interactive when entering via animated flow.
+            if (NavProject != null) NavProject.Visibility = Visibility.Visible;
+            if (NavTool != null) NavTool.Visibility = Visibility.Visible;
+            if (NavOption != null) NavOption.Visibility = Visibility.Visible;
 
             // Transition Header (Rx 기반, ViewModel 사용)
             ViewModel.HeaderText = "모딩메뉴";
             TxtMainHeader.Text = NormalizeHeaderText(ViewModel.HeaderText);
+            TxtMainHeader.Margin = GetHeaderDefaultMargin();
             var headerFadeTask = UIAnimationsRx.Fade(TxtMainHeader, 0, 1, AnimationConfig.Header_FadeInDuration);
 
             var headerTranslate = TxtMainHeader.RenderTransform as TranslateTransform;
@@ -298,6 +464,7 @@ namespace ICN_T2.UI.WPF
                 UIAnimationsRx.SlideX(ModdingMenuContent, -AnimationConfig.Book_SlideOffset, 0, AnimationConfig.Book_OpenDuration),
                 UIAnimationsRx.Fade(ModdingMenuButtons, 0, 1, AnimationConfig.Fade_Duration)
             ).DefaultIfEmpty();
+            SetModdingToolButtonsOpacity(AnimationConfig.ListEntrance_FromOpacity);
 
             var bgSlide = new DoubleAnimationUsingKeyFrames();
             bgSlide.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0))));
@@ -307,6 +474,18 @@ namespace ICN_T2.UI.WPF
 
             // 책 열기 완료 대기
             await bookOpenTask;
+            _bookOpenCompletedAtUtc = DateTime.UtcNow;
+
+            // Ensure book/page transforms are normalized before the next layout phase.
+            CoverTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            CoverTranslate.X = 0;
+            ModMenuSlideTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            ModMenuSlideTranslate.X = 0;
+            AttachBookRefractionEffect();
+            AttachModdingMedalRefractionEffects();
+
+            // [UPDATE] 책이 완전히 펼쳐진 다음에 아이콘 버튼들이 등장
+            AnimateModdingToolsEntrance();
 
             // Phase 2: 시선 여유 후 → 배경 확장 + 사이드바 축소 + 패널 마진 변경을 동시 시작
             // 책이 이미 펼쳐진 상태에서, 모든 레이아웃 변화가 함께 시작됨
@@ -320,36 +499,43 @@ namespace ICN_T2.UI.WPF
 
             // 1. 배경 확장 (StepProgress 0→0.5)
             AnimateSteppedLayoutTo(AnimationConfig.Background_StepProgress_ModdingMenu);
+            var titleBarHideTask = AnimateGlobalTitleBarAsync(false);
 
             // 2. 사이드바 축소 (직접 BeginAnimation — Observable 지연 없음)
             LeftSidebarBorder.BeginAnimation(FrameworkElement.WidthProperty, null);
             var sideAnim = new DoubleAnimation(LeftSidebarBorder.ActualWidth, AnimationConfig.Sidebar_ModdingMenu_Width, duration) { EasingFunction = easing };
             LeftSidebarBorder.BeginAnimation(FrameworkElement.WidthProperty, sideAnim);
+            UpdateSidebarClip();
 
             // 3. 패널 마진 변경 (직접 BeginAnimation — Observable 지연 없음)
             MainContentPanel.BeginAnimation(FrameworkElement.MarginProperty, null);
             var currentMargin = MainContentPanel.Margin;
-            var targetMargin = new Thickness(AnimationConfig.MainPanel_ModdingMenu_MarginLeft, currentMargin.Top, currentMargin.Right, currentMargin.Bottom);
+            var targetMargin = new Thickness(
+                AnimationConfig.MainPanel_ModdingMenu_MarginLeft,
+                AnimationConfig.MainPanel_ModdingMenu_MarginTop,
+                AnimationConfig.MainPanel_ModdingMenu_MarginRight,
+                AnimationConfig.MainPanel_ModdingMenu_MarginBottom);
             var marginAnim = new ThicknessAnimation(currentMargin, targetMargin, duration) { EasingFunction = easing };
             MainContentPanel.BeginAnimation(FrameworkElement.MarginProperty, marginAnim);
 
             // [NEW] 4. 책 이동 애니메이션 (배경보다 빠르게 도착)
-            // [FIX] 목표 위치를 명시적으로 지정 (AnimationConfig에서 정의)
-            double targetBookLeft = AnimationConfig.Book_ModdingMenu_MarginLeft;
+            // [FIX] StepProgress 보간식과 동일한 목표값으로 통일해 열기/닫기 오프셋 불일치 제거
+            double targetBookLeft = CalculateBookLeftForProgress(AnimationConfig.Background_StepProgress_ModdingMenu);
 
             System.Diagnostics.Debug.WriteLine($"[ModWindow] 책 이동: {AnimationConfig.Book_BaseMarginLeft} → {targetBookLeft} (명시적 지정) (한글)");
 
             // 시작 위치는 원래 위치 (확장 전)
-            var currentBookMargin = new Thickness(AnimationConfig.Book_BaseMarginLeft, AnimationConfig.Book_BaseMarginTop, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom);
-            var currentContentMargin = new Thickness(AnimationConfig.Book_BaseMarginLeft + AnimationConfig.Book_Open2OffsetX, AnimationConfig.Book_BaseMarginTop + AnimationConfig.Book_Open2OffsetY, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom);
+            var currentBookMargin = BookCover.Margin;
+            var currentContentMargin = ModdingMenuContent.Margin;
 
             var bookDuration = TimeSpan.FromMilliseconds(AnimationConfig.Book_MoveDuration);
             var bookEasing = new CubicEase { EasingMode = EasingMode.EaseOut };
 
+            _isBookMarginAnimationRunning = true;
             BookCover.BeginAnimation(FrameworkElement.MarginProperty, null);
             var bookMarginAnim = new ThicknessAnimation(
                 currentBookMargin,  // From: 원래 위치
-                new Thickness(targetBookLeft, AnimationConfig.Book_BaseMarginTop, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom),  // To: 목표 위치
+                GetBookCoverMargin(targetBookLeft),  // To: 목표 위치
                 bookDuration)
             { EasingFunction = bookEasing };
             BookCover.BeginAnimation(FrameworkElement.MarginProperty, bookMarginAnim);
@@ -357,7 +543,7 @@ namespace ICN_T2.UI.WPF
             ModdingMenuContent.BeginAnimation(FrameworkElement.MarginProperty, null);
             var contentMarginAnim = new ThicknessAnimation(
                 currentContentMargin,  // From: 원래 위치
-                new Thickness(targetBookLeft + AnimationConfig.Book_Open2OffsetX, AnimationConfig.Book_BaseMarginTop + AnimationConfig.Book_Open2OffsetY, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom),  // To: 목표 위치
+                GetBookPageMargin(targetBookLeft),  // To: 목표 위치
                 bookDuration)
             { EasingFunction = bookEasing };
             ModdingMenuContent.BeginAnimation(FrameworkElement.MarginProperty, contentMarginAnim);
@@ -366,14 +552,24 @@ namespace ICN_T2.UI.WPF
             await System.Threading.Tasks.Task.Delay((int)AnimationConfig.Transition_LayoutDuration);
 
             // [FIX] 애니메이션 완료 후 최종 위치로 명시적 설정 (재진입 시 올바른 초기화를 위해)
-            BookCover.BeginAnimation(FrameworkElement.MarginProperty, null);
-            BookCover.Margin = new Thickness(targetBookLeft, AnimationConfig.Book_BaseMarginTop, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom);
+            SetBookLayoutMargins(targetBookLeft, clearAnimations: true);
+            _isBookMarginAnimationRunning = false;
+            AttachBookRefractionEffect();
+            AttachModdingMedalRefractionEffects();
 
-            ModdingMenuContent.BeginAnimation(FrameworkElement.MarginProperty, null);
-            ModdingMenuContent.Margin = new Thickness(targetBookLeft + AnimationConfig.Book_Open2OffsetX, AnimationConfig.Book_BaseMarginTop + AnimationConfig.Book_Open2OffsetY, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom);
+            await titleBarHideTask;
 
-            await UIAnimationsRx.Fade(GlobalTitleBar, 1, 0, AnimationConfig.Fade_Duration);
-            GlobalTitleBar.IsHitTestVisible = false;
+            // Final guard: keep sidebar controls interactive after transition completes.
+            ModdingMenuButtons.IsHitTestVisible = true;
+            if (BtnBackOnly != null)
+            {
+                BtnBackOnly.IsHitTestVisible = true;
+                BtnBackOnly.Visibility = Visibility.Visible;
+            }
+            if (NavProject != null) NavProject.IsHitTestVisible = true;
+            if (NavTool != null) NavTool.IsHitTestVisible = true;
+            if (NavOption != null) NavOption.IsHitTestVisible = true;
+            this.IsHitTestVisible = true;
 
             System.Diagnostics.Debug.WriteLine("[ModWindow] TransitionToModdingMenu 완료 (StepProgress=0.5) (한글)");
         }
@@ -399,6 +595,7 @@ namespace ICN_T2.UI.WPF
         private async void TransitionBackToProjectList()
         {
             System.Diagnostics.Debug.WriteLine("[ModWindow] TransitionBackToProjectList 시작 - Rx 기반 전환됨 (한글)");
+            CancelRunningToolSelectionTransition(resetToModdingMenuState: false);
             #region agent log
             try
             {
@@ -438,6 +635,16 @@ namespace ICN_T2.UI.WPF
             // === Phase 1: 책장 닫기 애니메이션 시작 ===
             await UIAnimationsRx.Fade(ModdingMenuButtons, 1, 0, AnimationConfig.Fade_Duration);
 
+            // Normalize book/page anchors before close animation to avoid cumulative drift.
+            _isBookMarginAnimationRunning = false;
+            SetBookLayoutMargins(CalculateBookLeftForProgress(StepProgress), clearAnimations: true);
+            CoverTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            CoverTranslate.X = 0;
+            ModMenuSlideTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            ModMenuSlideTranslate.X = 0;
+            ModMenuTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            ModMenuTranslate.X = 0;
+
             // 1. 책 닫기 (먼저 실행)
             await Observable.Merge(
                 UIAnimationsRx.AnimateBook(BookCover, false, AnimationConfig.Book_CloseDuration),
@@ -451,17 +658,19 @@ namespace ICN_T2.UI.WPF
             ProjectMenuButtons.Visibility = Visibility.Visible;
             ProjectListView.Visibility = Visibility.Visible;
             RefreshProjectList();
+            GlobalTitleBar.Visibility = Visibility.Collapsed;
             GlobalTitleBar.Opacity = 0;
             ProjectMenuButtons.Opacity = 0;
             ProjectListView.Opacity = 0;
 
             // [FIX] 책 페이드아웃 먼저 완료 (배경 경계면 문제 해결)
+            int closeSyncFadeDuration = AnimationConfig.Book_CloseSyncFadeDuration;
             await Observable.Merge(
-                UIAnimationsRx.Fade(ModdingMenuContent, 1, 0, AnimationConfig.Fade_Duration),
-                UIAnimationsRx.Fade(BookCover, 1, 0, AnimationConfig.Book_CloseFadeOutDuration),
+                UIAnimationsRx.Fade(ModdingMenuContent, 1, 0, closeSyncFadeDuration),
+                UIAnimationsRx.Fade(BookCover, 1, 0, closeSyncFadeDuration),
                 // 오른쪽으로 이동하며 사라짐
-                UIAnimationsRx.SlideX(ModdingMenuContent, 0, AnimationConfig.Book_SlideOffset * 3, AnimationConfig.Fade_Duration),
-                UIAnimationsRx.SlideX(BookCover, 0, AnimationConfig.Book_SlideOffset * 3, AnimationConfig.Book_CloseFadeOutDuration)
+                UIAnimationsRx.SlideX(ModdingMenuContent, 0, AnimationConfig.Book_SlideOffset * 3, closeSyncFadeDuration),
+                UIAnimationsRx.SlideX(BookCover, 0, AnimationConfig.Book_SlideOffset * 3, closeSyncFadeDuration)
             ).DefaultIfEmpty();
 
             // 모든 레이아웃 애니메이션을 동일 콜 스택에서 BeginAnimation → 같은 프레임에 시작
@@ -475,22 +684,22 @@ namespace ICN_T2.UI.WPF
             LeftSidebarBorder.BeginAnimation(FrameworkElement.WidthProperty, null);
             var revSideAnim = new DoubleAnimation(LeftSidebarBorder.ActualWidth, AnimationConfig.Sidebar_ProjectMenu_Width, revDuration) { EasingFunction = revEasing };
             LeftSidebarBorder.BeginAnimation(FrameworkElement.WidthProperty, revSideAnim);
+            UpdateSidebarClip();
 
             // 패널 마진 복원 (직접 BeginAnimation)
             MainContentPanel.BeginAnimation(FrameworkElement.MarginProperty, null);
             var revCurrentMargin = MainContentPanel.Margin;
-            var revTargetMargin = new Thickness(AnimationConfig.MainPanel_ProjectMenu_MarginAll);
+            var revTargetMargin = new Thickness(
+                AnimationConfig.MainPanel_ProjectMenu_MarginLeft,
+                AnimationConfig.MainPanel_ProjectMenu_MarginTop,
+                AnimationConfig.MainPanel_ProjectMenu_MarginRight,
+                AnimationConfig.MainPanel_ProjectMenu_MarginBottom);
             var revMarginAnim = new ThicknessAnimation(revCurrentMargin, revTargetMargin, revDuration) { EasingFunction = revEasing };
             MainContentPanel.BeginAnimation(FrameworkElement.MarginProperty, revMarginAnim);
 
             // 메인 메뉴 요소 등장 (배경 축소와 병렬)
+            var titleBarShowTask = ShowGlobalTitleBarWithDelayAsync(AnimationConfig.Fade_MainMenuAppearDelay);
             await Observable.Merge(
-                // 메인 메뉴 요소 등장 (딜레이 후)
-                Observable.FromAsync(async () =>
-                {
-                    await System.Threading.Tasks.Task.Delay(AnimationConfig.Fade_MainMenuAppearDelay);
-                    return true;
-                }).SelectMany(_ => UIAnimationsRx.Fade(GlobalTitleBar, 0, 1, AnimationConfig.Fade_Duration)),
                 Observable.FromAsync(async () =>
                 {
                     await System.Threading.Tasks.Task.Delay(AnimationConfig.Fade_MainMenuAppearDelay);
@@ -500,14 +709,25 @@ namespace ICN_T2.UI.WPF
                 {
                     await System.Threading.Tasks.Task.Delay(AnimationConfig.Fade_MainMenuAppearDelay);
                     return true;
-                }).SelectMany(_ => UIAnimationsRx.Fade(ProjectListView, 0, 1, AnimationConfig.Fade_Duration))
+                }).SelectMany(_ => BuildListEntranceAnimation(ProjectListView))
             ).DefaultIfEmpty();
+            await titleBarShowTask;
 
             // Cleanup after parallel animations
             GlobalTitleBar.IsHitTestVisible = true;
             BookCover.Visibility = Visibility.Collapsed;
             ModdingMenuContent.Visibility = Visibility.Collapsed;
             ModdingMenuButtons.Visibility = Visibility.Collapsed;
+            DetachModdingMedalRefractionEffects();
+            DetachBookRefractionEffect();
+            _isBookMarginAnimationRunning = false;
+            CoverTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            CoverTranslate.X = 0;
+            ModMenuSlideTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            ModMenuSlideTranslate.X = -AnimationConfig.Book_SlideOffset;
+            ModMenuTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            ModMenuTranslate.X = 0;
+            SetBookLayoutMargins(CalculateBookLeftForProgress(0.0), clearAnimations: true);
 
             System.Diagnostics.Debug.WriteLine("[ModWindow] TransitionBackToProjectList 완료 (한글)");
         }
@@ -515,10 +735,14 @@ namespace ICN_T2.UI.WPF
 
         // 애니메이션 상태 저장용
         private System.Windows.Controls.Button? _activeTransitionButton;
+        private FrameworkElement? _activeTransitionOriginElement;
         private Thickness _activeTransitionStartMargin;
         private double _activeTransitionWidth;
         private double _activeTransitionHeight;
         private bool _isSelectionFinished;
+
+        // RecoverFromSelection 취소용 CTS (백 애니메이션 중 다른 버튼 누를 때 즉시 중단)
+        private System.Threading.CancellationTokenSource? _recoverCts;
 
         #region ========================================
         #region === 🎬 애니메이션 설정 변수 ===
@@ -548,11 +772,11 @@ namespace ICN_T2.UI.WPF
 
         #region 레이아웃 - 동적 보간 계산 (CS 전용)
         // 배경 형태 보간용 (StepProgress 기반)
-        private double _sidebarStartX = 240.0;           // 프로젝트 메뉴: 사이드바 너비 (보간 시작점)
+        private double _sidebarStartX = AnimationConfig.Background_SidebarStartX; // 프로젝트 메뉴: 사이드바 너비 (보간 시작점)
         private double _sidebarTargetX = 105.0;          // 모딩/도구 메뉴: 사이드바 너비 (보간 끝점)
 
         // 배경 외관 동적 계산
-        private double _riserMaxHeight = 80.0;           // 도구창 최대 상승 높이 (현재 미사용)
+        private double _riserMaxHeight = AnimationConfig.Background_RiserMaxHeight; // 도구창 최대 상승 높이 (현재 미사용)
         private double _bgShakeOffset = -10.0;           // 배경 흔들림 거리 (동적 계산)
         #endregion
 
@@ -581,6 +805,112 @@ namespace ICN_T2.UI.WPF
             }
         }
 
+        private void CancelRunningToolSelectionTransition(bool resetToModdingMenuState)
+        {
+            var cts = _activeToolTransitionCts;
+            if (cts == null) return;
+
+            try
+            {
+                cts.Cancel();
+            }
+            catch
+            {
+            }
+
+            if (resetToModdingMenuState)
+            {
+                ResetSelectionAnimationToModdingMenuState();
+            }
+        }
+
+        private void ResetSelectionAnimationToModdingMenuState()
+        {
+            try
+            {
+                HideAllToolContents();
+
+                SetTransitionOriginHidden(false);
+                _activeTransitionOriginElement = null;
+
+                TransitionProxy.BeginAnimation(UIElement.OpacityProperty, null);
+                TransitionProxy.Opacity = 0;
+                TransitionProxy.Visibility = Visibility.Collapsed;
+
+                if (TransitionProxy.RenderTransform is TransformGroup grp)
+                {
+                    foreach (var child in grp.Children)
+                    {
+                        if (child is ScaleTransform s)
+                        {
+                            s.ScaleX = 1;
+                            s.ScaleY = 1;
+                        }
+                        else if (child is TranslateTransform t)
+                        {
+                            t.X = 0;
+                            t.Y = 0;
+                        }
+                    }
+                }
+
+                if (BookCover != null)
+                {
+                    BookCover.BeginAnimation(UIElement.OpacityProperty, null);
+                    BookCover.Visibility = Visibility.Visible;
+                    BookCover.Opacity = 1;
+                }
+
+                if (ModdingMenuContent != null)
+                {
+                    ModdingMenuContent.BeginAnimation(UIElement.OpacityProperty, null);
+                    ModdingMenuContent.Visibility = Visibility.Visible;
+                    ModdingMenuContent.Opacity = 1;
+                }
+
+                if (ModdingMenuButtons != null)
+                {
+                    ModdingMenuButtons.BeginAnimation(UIElement.OpacityProperty, null);
+                    ModdingMenuButtons.Visibility = Visibility.Visible;
+                    ModdingMenuButtons.Opacity = 1;
+                }
+
+                StepProgress = AnimationConfig.Background_StepProgress_ModdingMenu;
+                _isBookMarginAnimationRunning = false;
+                SetBookLayoutMargins(CalculateBookLeftForProgress(StepProgress), clearAnimations: true);
+
+                CoverTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+                CoverTranslate.X = 0;
+                ModMenuTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+                ModMenuTranslate.X = 0;
+                ModMenuSlideTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+                ModMenuSlideTranslate.X = 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModWindow] Forward transition reset 오류: {ex.Message}");
+            }
+        }
+
+        private void ThrowIfForwardTransitionInterrupted(System.Threading.CancellationToken token, int transitionVersion)
+        {
+            token.ThrowIfCancellationRequested();
+            if (transitionVersion != _activeToolTransitionVersion)
+            {
+                throw new OperationCanceledException(token);
+            }
+        }
+
+        private async System.Threading.Tasks.Task DelayForForwardTransitionAsync(int delayMs, System.Threading.CancellationToken token, int transitionVersion)
+        {
+            ThrowIfForwardTransitionInterrupted(token, transitionVersion);
+            if (delayMs > 0)
+            {
+                await System.Threading.Tasks.Task.Delay(delayMs, token);
+            }
+            ThrowIfForwardTransitionInterrupted(token, transitionVersion);
+        }
+
         private static string NormalizeHeaderText(string? text)
         {
             return (text ?? string.Empty)
@@ -589,11 +919,168 @@ namespace ICN_T2.UI.WPF
                 .Replace("\r", " ");
         }
 
-        private async System.Threading.Tasks.Task PlaySelectionAnimation()
+        private static Thickness GetHeaderDefaultMargin()
+        {
+            return new Thickness(
+                AnimationConfig.Header_MarginLeft,
+                AnimationConfig.Header_MarginTop,
+                AnimationConfig.Header_MarginRight,
+                AnimationConfig.Header_MarginBottom);
+        }
+
+        private async System.Threading.Tasks.Task AnimateGlobalTitleBarAsync(bool show)
+        {
+            if (GlobalTitleBar == null) return;
+
+            double fromY = show ? AnimationConfig.TitleBar_HiddenOffsetY : 0.0;
+            double toY = show ? 0.0 : AnimationConfig.TitleBar_HiddenOffsetY;
+
+            if (GlobalTitleBarTranslate != null)
+            {
+                GlobalTitleBarTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+            }
+
+            if (show)
+            {
+                GlobalTitleBar.Visibility = Visibility.Visible;
+                GlobalTitleBar.IsHitTestVisible = true;
+                if (GlobalTitleBarTranslate != null)
+                {
+                    GlobalTitleBarTranslate.Y = fromY;
+                }
+
+                var yAnim = new DoubleAnimation(fromY, toY, TimeSpan.FromMilliseconds(AnimationConfig.TitleBar_SlideDuration))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                GlobalTitleBarTranslate?.BeginAnimation(TranslateTransform.YProperty, yAnim);
+                await UIAnimationsRx.Fade(GlobalTitleBar, GlobalTitleBar.Opacity, 1, AnimationConfig.Fade_Duration);
+                GlobalTitleBar.Opacity = 1;
+            }
+            else
+            {
+                GlobalTitleBar.IsHitTestVisible = false;
+                var yAnim = new DoubleAnimation(fromY, toY, TimeSpan.FromMilliseconds(AnimationConfig.TitleBar_SlideDuration))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                };
+                GlobalTitleBarTranslate?.BeginAnimation(TranslateTransform.YProperty, yAnim);
+                await UIAnimationsRx.Fade(GlobalTitleBar, GlobalTitleBar.Opacity, 0, AnimationConfig.Fade_Duration);
+                GlobalTitleBar.Opacity = 0;
+                GlobalTitleBar.Visibility = Visibility.Collapsed;
+                if (GlobalTitleBarTranslate != null)
+                {
+                    GlobalTitleBarTranslate.Y = AnimationConfig.TitleBar_HiddenOffsetY;
+                }
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowGlobalTitleBarWithDelayAsync(int delayMs)
+        {
+            if (delayMs > 0)
+            {
+                await System.Threading.Tasks.Task.Delay(delayMs);
+            }
+
+            await AnimateGlobalTitleBarAsync(true);
+        }
+
+        private static Thickness GetBookCoverMargin(double left)
+        {
+            return new Thickness(
+                left,
+                AnimationConfig.Book_BaseMarginTop,
+                AnimationConfig.Book_BaseMarginRight,
+                AnimationConfig.Book_BaseMarginBottom);
+        }
+
+        private static Thickness GetBookPageMargin(double left)
+        {
+            return new Thickness(
+                left + AnimationConfig.Book_Open2OffsetX + AnimationConfig.Book_Page_LeftNudge,
+                AnimationConfig.Book_BaseMarginTop + AnimationConfig.Book_Open2OffsetY,
+                AnimationConfig.Book_BaseMarginRight,
+                AnimationConfig.Book_BaseMarginBottom);
+        }
+
+        private void SetBookLayoutMargins(double left, bool clearAnimations = true)
+        {
+            if (BookCover == null || ModdingMenuContent == null) return;
+
+            if (clearAnimations)
+            {
+                BookCover.BeginAnimation(FrameworkElement.MarginProperty, null);
+                ModdingMenuContent.BeginAnimation(FrameworkElement.MarginProperty, null);
+            }
+
+            BookCover.Margin = GetBookCoverMargin(left);
+            ModdingMenuContent.Margin = GetBookPageMargin(left);
+
+            if (ModdingMenuContent.Visibility == Visibility.Visible)
+            {
+                AttachModdingMedalRefractionEffects();
+            }
+        }
+
+        private void SetModdingToolButtonsOpacity(double opacity)
+        {
+            if (ModdingMenuContent == null || ModdingMenuContent.Items == null) return;
+
+            int itemCount = ModdingMenuContent.Items.Count;
+            for (int i = 0; i < itemCount; i++)
+            {
+                var container = ModdingMenuContent.ItemContainerGenerator.ContainerFromIndex(i) as ContentPresenter;
+                if (container == null) continue;
+
+                var button = FindVisualChild<Button>(container);
+                if (button == null) continue;
+
+                UIAnimationsRx.ClearAnimation(button, UIElement.OpacityProperty);
+                button.Opacity = opacity;
+                button.Visibility = Visibility.Visible;
+            }
+        }
+
+        private double CalculateBookLeftForProgress(double progress)
+        {
+            double clamped = Math.Max(0.0, Math.Min(1.0, progress));
+            double sidebarProgress = Math.Min(clamped * 2.0, 1.0);
+            double targetSidebarX = AnimationConfig.Sidebar_ModdingMenu_Width + AnimationConfig.Background_SidebarGap;
+            double expandedWidth = (_sidebarStartX - targetSidebarX) *
+                sidebarProgress *
+                Math.Max(0.0, Math.Min(1.0, AnimationConfig.Book_SidebarFollowFactor));
+            double moddingNudge = AnimationConfig.Book_ModdingMenu_LeftNudge * sidebarProgress;
+            double toolBlend = 0.0;
+            if (clamped > AnimationConfig.Background_StepProgress_ModdingMenu)
+            {
+                toolBlend = Math.Min(
+                    (clamped - AnimationConfig.Background_StepProgress_ModdingMenu) /
+                    Math.Max(0.0001, AnimationConfig.Background_StepProgress_ToolMenu - AnimationConfig.Background_StepProgress_ModdingMenu),
+                    1.0);
+            }
+            double toolNudge = (AnimationConfig.Book_ToolMenu_LeftNudge - AnimationConfig.Book_ModdingMenu_LeftNudge) * toolBlend;
+            return AnimationConfig.Book_BaseMarginLeft - expandedWidth + moddingNudge + toolNudge + AnimationConfig.Book_GlobalCloseOffsetX;
+        }
+
+        private async System.Threading.Tasks.Task WaitForBookReadyForMedalAsync(System.Threading.CancellationToken token, int transitionVersion)
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            while ((_bookOpenCompletedAtUtc == DateTime.MinValue ||
+                   StepProgress < AnimationConfig.Background_StepProgress_ModdingMenu - 0.01) &&
+                   timer.ElapsedMilliseconds < 2000)
+            {
+                await DelayForForwardTransitionAsync(16, token, transitionVersion);
+            }
+
+            await DelayForForwardTransitionAsync(AnimationConfig.Medal_AfterBookReadyDelay, token, transitionVersion);
+        }
+
+        private async System.Threading.Tasks.Task PlaySelectionAnimation(System.Threading.CancellationToken token, int transitionVersion)
         {
             try
             {
                 System.Diagnostics.Debug.WriteLine("[ModWindow] PlaySelectionAnimation 시작 - Rx 기반 전환됨 (한글)");
+                ThrowIfForwardTransitionInterrupted(token, transitionVersion);
 
                 // 1. Setup Proxy Transform (Reset to Identity)
                 var grp = new TransformGroup();
@@ -609,6 +1096,9 @@ namespace ICN_T2.UI.WPF
 
                 // Set ZIndex to ensure it's on top
                 System.Windows.Controls.Panel.SetZIndex(TransitionProxy, AnimationConfig.ZIndex_MedalProxy);
+
+                // Ensure medal bounce starts only after book-open sequence is fully settled.
+                await WaitForBookReadyForMedalAsync(token, transitionVersion);
 
                 // 2. Medal Popup Animation (Scale + Y movement)
                 var duration = TimeSpan.FromMilliseconds(AnimationConfig.Medal_PopDuration);
@@ -637,12 +1127,12 @@ namespace ICN_T2.UI.WPF
                 System.Diagnostics.Debug.WriteLine($"[ModWindow] Pop & Lift 시작 (한글): Margin={TransitionProxy.Margin}");
 
                 // --- STEP 2: PAUSE & FLY TO HEADER ---
-                await System.Threading.Tasks.Task.Delay(AnimationConfig.Medal_PopDuration);
+                await DelayForForwardTransitionAsync(AnimationConfig.Medal_PopDuration, token, transitionVersion);
 
                 // [UPDATE] 유저 요청: 배경 확장 애니메이션 시작 시간을 0.4초±0.05초(350~450ms)로 조정
                 // 메달 팝업이 300ms이므로, 추가 대기 시간 AnimationConfig 사용
                 // 현재 시점: 300ms(팝업) + 100ms → 목표: 400ms 전후
-                await System.Threading.Tasks.Task.Delay(AnimationConfig.Transition_MedalPopDelay);
+                await DelayForForwardTransitionAsync(AnimationConfig.Transition_MedalPopDelay, token, transitionVersion);
 
                 // Z-Index Management for "Behind Header" effect
                 System.Windows.Controls.Panel.SetZIndex(TxtMainHeader, AnimationConfig.ZIndex_Header);
@@ -677,7 +1167,7 @@ namespace ICN_T2.UI.WPF
                 TransitionProxy.BeginAnimation(UIElement.OpacityProperty, animFade);
 
                 // Wait for animations to complete
-                await System.Threading.Tasks.Task.Delay(AnimationConfig.Medal_FlyDuration + AnimationConfig.Medal_FlyExtraDelay);
+                await DelayForForwardTransitionAsync(AnimationConfig.Medal_FlyDuration + AnimationConfig.Medal_FlyExtraDelay, token, transitionVersion);
 
                 // --- STEP 3: TRANSITION TO TOOL ---
 
@@ -688,22 +1178,26 @@ namespace ICN_T2.UI.WPF
                     await UIAnimationsRx.Fade(TxtMainHeader, 1, 0, AnimationConfig.Header_FadeOutDuration);
                     ViewModel.HeaderText = cleanTitle;
                     TxtMainHeader.Text = NormalizeHeaderText(ViewModel.HeaderText);
-
-                    // [NEW] 도구 메뉴 진입 시 헤더를 20px 아래로 이동
-                    TxtMainHeader.Margin = new Thickness(10, 20, 0, 30);
+                    TxtMainHeader.Margin = GetHeaderDefaultMargin();
 
                     await UIAnimationsRx.Fade(TxtMainHeader, 0, 1, AnimationConfig.Fade_Duration);
+                    ThrowIfForwardTransitionInterrupted(token, transitionVersion);
                 }
 
                 // [NEW] 유저 요청: 헤더 표시 후 0.1초(100ms) 대기
                 System.Diagnostics.Debug.WriteLine("[ModWindow] 헤더 표시 완료, 0.1초 대기 후 배경 확장 시작 (한글)");
-                await System.Threading.Tasks.Task.Delay(AnimationConfig.Tool_HeaderBeforeBackgroundDelay);
+                await DelayForForwardTransitionAsync(AnimationConfig.Tool_HeaderBeforeBackgroundDelay, token, transitionVersion);
 
                 // [UPDATE] 2단계 확장 시스템: 도구 진입 시 0.5 → 1.0 (위쪽 추가 확장)
                 // 이미 모딩 메뉴에서 0.5까지 확장되어 있으므로, 여기서는 0.5 → 1.0만 애니메이션
                 System.Diagnostics.Debug.WriteLine("[ModWindow] 도구 진입 2단계 확장 시작 (0.5→1.0, 위쪽 추가) (한글)");
                 AnimateSteppedLayoutTo(1.0);
-                AnimateToolCompactLayout(true);
+                /* Compact 확장 로직 비활성화 (요청 사항):
+                 * StepProgress 0.5→1.0의 위쪽 확장 로직만 유지하고,
+                 * MainContentPanel/MainContentRootGrid compact 마진 애니메이션은 제거.
+                 * 유지 이유: 히스토리 보존 / 재활성 대비.
+                 */
+                // AnimateToolCompactLayout(true);
 
                 // [FIX TIMING] Trigger Book Close HERE (Rx 기반)
                 var bookCloseTask = UIAnimationsRx.AnimateBook(BookCover, false, AnimationConfig.Book_CloseDuration);
@@ -725,6 +1219,7 @@ namespace ICN_T2.UI.WPF
 
                 // Wait for fade out
                 await fadeTask;
+                ThrowIfForwardTransitionInterrupted(token, transitionVersion);
 
                 // [UPDATE] 배경 확장 시작 전에 초기화 시작 (렉 방지)
                 System.Diagnostics.Debug.WriteLine("[ModWindow] 콘텐츠 초기화 시작 (배경 확장과 병렬) (한글)");
@@ -749,6 +1244,7 @@ namespace ICN_T2.UI.WPF
                 bool shouldShowCharacterInfo = false;
                 bool shouldShowCharacterScale = false;
                 bool shouldShowYokaiStats = false;
+                bool shouldShowEncounterEditor = false;
 
                 if (_activeTransitionButton?.DataContext is ICN_T2.UI.WPF.ViewModels.ModdingToolViewModel vmReveal)
                 {
@@ -767,11 +1263,19 @@ namespace ICN_T2.UI.WPF
                         shouldShowYokaiStats = true;
                         PrepareYokaiStatsContentForReveal();
                     }
+                    else if (vmReveal.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.EncounterEditor)
+                    {
+                        shouldShowEncounterEditor = true;
+                        PrepareEncounterEditorContentForReveal();
+                    }
+
                 }
 
                 // 배경 확장 완료 대기
                 System.Diagnostics.Debug.WriteLine("[ModWindow] 배경 확장 완료 대기 (한글)");
-                await System.Threading.Tasks.Task.Delay(AnimationConfig.Transition_LayoutDuration);
+                await DelayForForwardTransitionAsync(AnimationConfig.Transition_LayoutDuration, token, transitionVersion);
+                RequestToolHostLayoutUpdate("Tool transition layout completed", force: true);
+                FinalizeToolLayoutOnce("Tool transition layout completed");
 
                 // 확장 완료 직후 즉시 페이드인만 재생 (초기화는 페이드인 완료 후 실행해 애니메이션 취소 방지)
                 System.Diagnostics.Debug.WriteLine("[ModWindow] 사이드바 & 콘텐츠 페이드인 시작 (한글)");
@@ -781,16 +1285,24 @@ namespace ICN_T2.UI.WPF
                     fadeInTasks.Add(WaitObservable(UIAnimationsRx.Fade(ToolSidebarButtons, 0, 1, AnimationConfig.Fade_Duration)));
 
                 if (shouldShowCharacterInfo && CharacterInfoContent != null && CharacterInfoContent.Visibility == Visibility.Visible)
-                    fadeInTasks.Add(WaitObservable(UIAnimationsRx.Fade(CharacterInfoContent, 0, 1, AnimationConfig.Tool_ContentFadeDuration)));
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(CharacterInfoContent)));
 
                 if (shouldShowCharacterScale && CharacterScaleContent != null && CharacterScaleContent.Visibility == Visibility.Visible)
-                    fadeInTasks.Add(WaitObservable(UIAnimationsRx.Fade(CharacterScaleContent, 0, 1, AnimationConfig.Tool_ContentFadeDuration)));
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(CharacterScaleContent)));
 
                 if (shouldShowYokaiStats && YokaiStatsContent != null && YokaiStatsContent.Visibility == Visibility.Visible)
-                    fadeInTasks.Add(WaitObservable(UIAnimationsRx.Fade(YokaiStatsContent, 0, 1, AnimationConfig.Tool_ContentFadeDuration)));
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(YokaiStatsContent)));
+                if (shouldShowEncounterEditor && EncounterEditorContent != null && EncounterEditorContent.Visibility == Visibility.Visible)
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(EncounterEditorContent)));
 
                 if (fadeInTasks.Count > 0)
                     await System.Threading.Tasks.Task.WhenAll(fadeInTasks);
+                ThrowIfForwardTransitionInterrupted(token, transitionVersion);
+
+                // [FIX] 페이드인 완료 후 Opacity를 1로 명시적으로 고정 (애니메이션 종료 후 사라짐 방지)
+                if (shouldShowCharacterInfo && CharacterInfoContent != null) CharacterInfoContent.Opacity = 1;
+                if (shouldShowCharacterScale && CharacterScaleContent != null) CharacterScaleContent.Opacity = 1;
+                if (shouldShowYokaiStats && YokaiStatsContent != null) YokaiStatsContent.Opacity = 1;
 
                 // 페이드인 완료 후 초기화 실행 (콘텐츠 채우기)
                 if (shouldShowCharacterInfo)
@@ -799,6 +1311,8 @@ namespace ICN_T2.UI.WPF
                     _ = InitializeCharacterScaleContentAsync();
                 else if (shouldShowYokaiStats)
                     _ = InitializeYokaiStatsContentAsync();
+                else if (shouldShowEncounterEditor)
+                    _ = InitializeEncounterEditorContentAsync();
 
                 // [REMOVED] Transition_ToolRevealDelay는 이제 배경 확장 완료 후이므로 불필요
                 // await System.Threading.Tasks.Task.Delay(AnimationConfig.Transition_ToolRevealDelay);
@@ -810,7 +1324,8 @@ namespace ICN_T2.UI.WPF
                     // Legacy Tools are handled below (OpenToolWindow)
                     if (vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.CharacterInfo &&
                         vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.CharacterScale &&
-                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.YokaiStats)
+                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.YokaiStats &&
+                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.EncounterEditor)
                     {
                         if (HasConnectedTool(vmTool))
                             OpenToolWindow(vmTool);
@@ -819,7 +1334,7 @@ namespace ICN_T2.UI.WPF
                     }
                 }
 
-                await System.Threading.Tasks.Task.Delay(AnimationConfig.Transition_ToolFinalDelay);
+                await DelayForForwardTransitionAsync(AnimationConfig.Transition_ToolFinalDelay, token, transitionVersion);
 
                 // Restore ZIndexes and Visibility
                 System.Windows.Controls.Panel.SetZIndex(TxtMainHeader, 0);
@@ -830,8 +1345,14 @@ namespace ICN_T2.UI.WPF
 
                 System.Diagnostics.Debug.WriteLine("[ModWindow] PlaySelectionAnimation 완료 (한글)");
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
+                SetTransitionOriginHidden(false);
+                _activeTransitionOriginElement = null;
                 System.Diagnostics.Debug.WriteLine($"[ModWindow] PlaySelectionAnimation 오류: {ex.Message}");
             }
         }
@@ -847,6 +1368,23 @@ namespace ICN_T2.UI.WPF
 
             tcs.Task.ContinueWith(_ => subscription.Dispose());
             return tcs.Task;
+        }
+
+        private IObservable<System.Reactive.Unit> BuildListEntranceAnimation(FrameworkElement element)
+        {
+            if (!AnimationConfig.ListEntrance_Enable)
+                return UIAnimationsRx.Fade(element, 0, 1, AnimationConfig.Fade_Duration);
+
+            return UIAnimationsRx.DropInBounce(
+                element,
+                durationMs: AnimationConfig.ListEntrance_DurationMs,
+                fromOffsetY: AnimationConfig.ListEntrance_OffsetY,
+                fromScale: AnimationConfig.ListEntrance_FromScale,
+                toScale: AnimationConfig.ListEntrance_ToScale,
+                fromOpacity: AnimationConfig.ListEntrance_FromOpacity,
+                toOpacity: AnimationConfig.ListEntrance_ToOpacity,
+                bounceAmplitude: AnimationConfig.ListEntrance_BounceAmplitude
+            );
         }
 
 
@@ -939,24 +1477,73 @@ namespace ICN_T2.UI.WPF
         {
             if (BookCover == null || ModdingMenuContent == null) return;
             if (BookCover.Visibility != Visibility.Visible) return;
+            if (_isBookMarginAnimationRunning) return;
 
-            // [FIX] 책이 독립 애니메이션 중이면 자동 업데이트 스킵
-            if (BookCover.GetAnimationBaseValue(FrameworkElement.MarginProperty) != DependencyProperty.UnsetValue)
+            double bookLeft = CalculateBookLeftForProgress(StepProgress);
+            SetBookLayoutMargins(bookLeft, clearAnimations: false);
+        }
+
+        private static bool IsSameWindowSize(System.Windows.Size a, System.Windows.Size b)
+        {
+            return Math.Abs(a.Width - b.Width) < 0.5 &&
+                   Math.Abs(a.Height - b.Height) < 0.5;
+        }
+
+        private System.Windows.Size GetCurrentWindowSize()
+        {
+            return new System.Windows.Size(ActualWidth, ActualHeight);
+        }
+
+        private void ResetToolLayoutSession(string reason)
+        {
+            _isToolLayoutLocked = false;
+            _isToolLayoutFinalized = false;
+            _lastToolLayoutWindowSize = System.Windows.Size.Empty;
+            System.Diagnostics.Debug.WriteLine($"[ModWindow] Tool layout reset: {reason} (한글)");
+        }
+
+        private void BeginToolLayoutSession(string reason)
+        {
+            _isToolLayoutLocked = false;
+            _isToolLayoutFinalized = false;
+            _lastToolLayoutWindowSize = System.Windows.Size.Empty;
+            System.Diagnostics.Debug.WriteLine($"[ModWindow] Tool layout session begin: {reason} (한글)");
+        }
+
+        private void FinalizeToolLayoutOnce(string reason)
+        {
+            if (_isToolLayoutFinalized) return;
+
+            _isToolLayoutFinalized = true;
+            _isToolLayoutLocked = true;
+            _lastToolLayoutWindowSize = GetCurrentWindowSize();
+            System.Diagnostics.Debug.WriteLine($"[ModWindow] Tool layout finalized: {reason} (한글)");
+        }
+
+        private bool CanRecalculateToolLayout(bool force)
+        {
+            if (force) return true;
+            if (_isToolLayoutLocked) return false;
+
+            var currentSize = GetCurrentWindowSize();
+            if (!_lastToolLayoutWindowSize.IsEmpty && IsSameWindowSize(currentSize, _lastToolLayoutWindowSize))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private void RequestToolHostLayoutUpdate(string reason, bool force = false)
+        {
+            if (!CanRecalculateToolLayout(force))
+            {
                 return;
+            }
 
-            double progress = StepProgress;
-            double sidebarProgress = Math.Min(progress * 2.0, 1.0);
-            double targetSidebarX = AnimationConfig.Sidebar_ModdingMenu_Width + AnimationConfig.Background_SidebarGap;
-
-            // 확장된 영역 크기 (배경이 왼쪽으로 이동한 양)
-            double expandedWidth = (_sidebarStartX - targetSidebarX) * sidebarProgress;
-
-            // 책 왼쪽 = 원래 위치 - 배경 확장에 비례한 이동량
-            // Phase 2에서 패널 마진 변화 + 배경 확장 + 책 이동이 모두 동시 시작되므로 자연스러움
-            double bookLeft = AnimationConfig.Book_BaseMarginLeft - expandedWidth;
-
-            BookCover.Margin = new Thickness(bookLeft, AnimationConfig.Book_BaseMarginTop, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom);
-            ModdingMenuContent.Margin = new Thickness(bookLeft + AnimationConfig.Book_Open2OffsetX, AnimationConfig.Book_BaseMarginTop + AnimationConfig.Book_Open2OffsetY, AnimationConfig.Book_BaseMarginRight, AnimationConfig.Book_BaseMarginBottom);
+            AdjustCharacterInfoPosition();
+            _lastToolLayoutWindowSize = GetCurrentWindowSize();
+            System.Diagnostics.Debug.WriteLine($"[ModWindow] Tool layout update applied: {reason}, force={force} (한글)");
         }
 
         /// <summary>
@@ -967,11 +1554,16 @@ namespace ICN_T2.UI.WPF
             System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareCharacterInfoContentForReveal 시작 (한글)");
 
             HideAllToolContents();
+            BeginToolLayoutSession("PrepareCharacterInfoContentForReveal");
+
+            // Apply final host layout before first visible frame to avoid pop/shrink.
+            RequestToolHostLayoutUpdate("CharacterInfo pre-visible", force: true);
 
             // 초기 상태 설정
             UIAnimationsRx.ClearAnimation(CharacterInfoContent, UIElement.OpacityProperty);
             CharacterInfoContent.Opacity = 0;
             CharacterInfoContent.Visibility = Visibility.Visible;
+            RequestToolHostLayoutUpdate("CharacterInfo became visible", force: true);
 
             System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareCharacterInfoContentForReveal 완료 (한글)");
         }
@@ -982,15 +1574,28 @@ namespace ICN_T2.UI.WPF
         private async System.Threading.Tasks.Task InitializeCharacterInfoContentAsync()
         {
             System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeCharacterInfoContent 시작 (한글)");
+            var perfTotal = System.Diagnostics.Stopwatch.StartNew();
 
             // 초기화 실행 (백그라운드)
             if (CharacterInfoContent is ICN_T2.UI.WPF.Views.CharacterInfoV3 view && CurrentGame != null)
             {
+                var initTimer = System.Diagnostics.Stopwatch.StartNew();
                 await Dispatcher.InvokeAsync(() => view.Initialize(CurrentGame), DispatcherPriority.Background);
+                System.Diagnostics.Debug.WriteLine($"[Perf] CharacterInfo Initialize: {initTimer.ElapsedMilliseconds}ms");
             }
 
             // 렌더링 안정화
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+            // 도구 패널 셰이더 연결(모든 도구뷰 공통 로직)
+            var shaderAttachTimer = System.Diagnostics.Stopwatch.StartNew();
+            _toolPanelAttachRetryCount = 0;
+            AttachToolPanelRefractionEffects();
+            AttachToolInteractiveRefractionEffects();
+            RequestToolHostLayoutUpdate("CharacterInfo init completed", force: true);
+            FinalizeToolLayoutOnce("CharacterInfo init completed");
+            System.Diagnostics.Debug.WriteLine($"[Perf] CharacterInfo shader attach: {shaderAttachTimer.ElapsedMilliseconds}ms");
+            System.Diagnostics.Debug.WriteLine($"[Perf] InitializeCharacterInfoContentAsync total: {perfTotal.ElapsedMilliseconds}ms");
 
             System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeCharacterInfoContent 완료 (한글)");
         }
@@ -1021,11 +1626,13 @@ namespace ICN_T2.UI.WPF
             // 표시 준비 + 초기화 실행
             PrepareCharacterInfoContentForReveal();
             await InitializeCharacterInfoContentAsync();
+            RequestToolHostLayoutUpdate("ShowCharacterInfoContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowCharacterInfoContent");
 
             System.Diagnostics.Debug.WriteLine($"[ModWindow] CharacterInfoContent 페이드인 시작: Opacity={CharacterInfoContent.Opacity} (한글)");
 
-            // 페이드인 애니메이션
-            await UIAnimationsRx.Fade(CharacterInfoContent, 0, 1, AnimationConfig.Tool_ContentFadeDuration);
+            // 경량 바운스 진입 (검색 내부 항목은 제외되고 컨테이너만 적용됨)
+            await WaitObservable(BuildListEntranceAnimation(CharacterInfoContent));
 
             ViewModel.HeaderText = "캐릭터 기본정보";
             TxtMainHeader.Text = NormalizeHeaderText(ViewModel.HeaderText);
@@ -1038,27 +1645,51 @@ namespace ICN_T2.UI.WPF
         private void PrepareCharacterScaleContentForReveal()
         {
             System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareCharacterScaleContentForReveal 시작 (한글)");
+            HideAllToolContents();
+            BeginToolLayoutSession("PrepareCharacterScaleContentForReveal");
+            RequestToolHostLayoutUpdate("CharacterScale pre-visible", force: true);
             UIAnimationsRx.ClearAnimation(CharacterScaleContent, UIElement.OpacityProperty);
             CharacterScaleContent.Opacity = 0;
             CharacterScaleContent.Visibility = Visibility.Visible;
+            RequestToolHostLayoutUpdate("CharacterScale became visible", force: true);
             System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareCharacterScaleContentForReveal 완료 (한글)");
         }
 
         private async System.Threading.Tasks.Task InitializeCharacterScaleContentAsync()
         {
             System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeCharacterScaleContent 시작 (한글)");
+            var perfTotal = System.Diagnostics.Stopwatch.StartNew();
 
-            if (CharacterScaleContent is ICN_T2.UI.WPF.Views.CharacterScaleView view && CurrentGame != null)
+            try
             {
-                if (view.DataContext is not ICN_T2.UI.WPF.ViewModels.CharacterScaleViewModel)
+                if (CharacterScaleContent is ICN_T2.UI.WPF.Views.CharacterScaleView view && CurrentGame != null)
                 {
-                    System.Diagnostics.Debug.WriteLine("[ModWindow] CharacterScaleViewModel 생성 및 할당 (한글)");
                     view.Initialize(CurrentGame);
-                    view.DataContext = new ICN_T2.UI.WPF.ViewModels.CharacterScaleViewModel(CurrentGame);
+                    if (view.DataContext is not ICN_T2.UI.WPF.ViewModels.CharacterScaleViewModel)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[ModWindow] CharacterScaleViewModel 생성 및 할당 (한글)");
+                        var vmTimer = System.Diagnostics.Stopwatch.StartNew();
+                        view.DataContext = new ICN_T2.UI.WPF.ViewModels.CharacterScaleViewModel(CurrentGame);
+                        System.Diagnostics.Debug.WriteLine($"[Perf] CharacterScale VM init: {vmTimer.ElapsedMilliseconds}ms");
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModWindow] InitializeCharacterScaleContent 오류: {ex.Message}");
             }
 
             await System.Threading.Tasks.Task.CompletedTask;
+
+            // 도구 패널 셰이더 연결(모든 도구뷰 공통 로직)
+            var shaderAttachTimer = System.Diagnostics.Stopwatch.StartNew();
+            _toolPanelAttachRetryCount = 0;
+            AttachToolPanelRefractionEffects();
+            AttachToolInteractiveRefractionEffects();
+            RequestToolHostLayoutUpdate("CharacterScale init completed", force: true);
+            FinalizeToolLayoutOnce("CharacterScale init completed");
+            System.Diagnostics.Debug.WriteLine($"[Perf] CharacterScale shader attach: {shaderAttachTimer.ElapsedMilliseconds}ms");
+            System.Diagnostics.Debug.WriteLine($"[Perf] InitializeCharacterScaleContentAsync total: {perfTotal.ElapsedMilliseconds}ms");
             System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeCharacterScaleContent 완료 (한글)");
         }
 
@@ -1068,8 +1699,10 @@ namespace ICN_T2.UI.WPF
 
             PrepareCharacterScaleContentForReveal();
             await InitializeCharacterScaleContentAsync();
+            RequestToolHostLayoutUpdate("ShowCharacterScaleContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowCharacterScaleContent");
 
-            await UIAnimationsRx.Fade(CharacterScaleContent, 0, 1, AnimationConfig.Tool_ContentFadeDuration);
+            await WaitObservable(BuildListEntranceAnimation(CharacterScaleContent));
 
             CharacterScaleContent.Opacity = 1;
             CharacterScaleContent.Visibility = Visibility.Visible;
@@ -1081,27 +1714,43 @@ namespace ICN_T2.UI.WPF
         private void PrepareYokaiStatsContentForReveal()
         {
             System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareYokaiStatsContentForReveal 시작 (한글)");
+            BeginToolLayoutSession("PrepareYokaiStatsContentForReveal");
+            RequestToolHostLayoutUpdate("YokaiStats pre-visible", force: true);
             UIAnimationsRx.ClearAnimation(YokaiStatsContent, UIElement.OpacityProperty);
             YokaiStatsContent.Opacity = 0;
             YokaiStatsContent.Visibility = Visibility.Visible;
+            RequestToolHostLayoutUpdate("YokaiStats became visible", force: true);
             System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareYokaiStatsContentForReveal 완료 (한글)");
         }
 
         private async System.Threading.Tasks.Task InitializeYokaiStatsContentAsync()
         {
             System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeYokaiStatsContent 시작 (한글)");
+            var perfTotal = System.Diagnostics.Stopwatch.StartNew();
 
             if (YokaiStatsContent is ICN_T2.UI.WPF.Views.YokaiStatsView view && CurrentGame != null)
             {
                 if (view.DataContext is not ICN_T2.UI.WPF.ViewModels.YokaiStatsViewModel)
                 {
                     System.Diagnostics.Debug.WriteLine("[ModWindow] YokaiStatsViewModel 생성 및 할당 (한글)");
+                    var vmTimer = System.Diagnostics.Stopwatch.StartNew();
                     view.Initialize(CurrentGame);
                     view.DataContext = new ICN_T2.UI.WPF.ViewModels.YokaiStatsViewModel(CurrentGame);
+                    System.Diagnostics.Debug.WriteLine($"[Perf] YokaiStats VM init: {vmTimer.ElapsedMilliseconds}ms");
                 }
             }
 
             await System.Threading.Tasks.Task.CompletedTask;
+
+            // 도구 패널 셰이더 연결(모든 도구뷰 공통 로직)
+            var shaderAttachTimer = System.Diagnostics.Stopwatch.StartNew();
+            _toolPanelAttachRetryCount = 0;
+            AttachToolPanelRefractionEffects();
+            AttachToolInteractiveRefractionEffects();
+            RequestToolHostLayoutUpdate("YokaiStats init completed", force: true);
+            FinalizeToolLayoutOnce("YokaiStats init completed");
+            System.Diagnostics.Debug.WriteLine($"[Perf] YokaiStats shader attach: {shaderAttachTimer.ElapsedMilliseconds}ms");
+            System.Diagnostics.Debug.WriteLine($"[Perf] InitializeYokaiStatsContentAsync total: {perfTotal.ElapsedMilliseconds}ms");
             System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeYokaiStatsContent 완료 (한글)");
         }
 
@@ -1111,12 +1760,260 @@ namespace ICN_T2.UI.WPF
 
             PrepareYokaiStatsContentForReveal();
             await InitializeYokaiStatsContentAsync();
+            RequestToolHostLayoutUpdate("ShowYokaiStatsContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowYokaiStatsContent");
 
-            await UIAnimationsRx.Fade(YokaiStatsContent, 0, 1, AnimationConfig.Tool_ContentFadeDuration);
+            await WaitObservable(BuildListEntranceAnimation(YokaiStatsContent));
 
             YokaiStatsContent.Opacity = 1;
             YokaiStatsContent.Visibility = Visibility.Visible;
             System.Diagnostics.Debug.WriteLine("[ModWindow] ShowYokaiStatsContent 완료 (한글)");
+        }
+
+        private void PrepareEncounterEditorContentForReveal()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareEncounterEditorContentForReveal 시작");
+            BeginToolLayoutSession("PrepareEncounterEditorContentForReveal");
+
+            UIAnimationsRx.ClearAnimation(EncounterEditorContent, UIElement.OpacityProperty);
+            EncounterEditorContent.Opacity = 0;
+            EncounterEditorContent.Visibility = Visibility.Visible;
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareEncounterEditorContentForReveal 완료");
+        }
+
+        private async System.Threading.Tasks.Task InitializeEncounterEditorContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeEncounterEditorContent 시작");
+
+            if (EncounterEditorContent.DataContext == null && CurrentGame != null)
+            {
+                // Create ViewModel if needed
+                EncounterEditorContent.DataContext = new ICN_T2.UI.WPF.ViewModels.EncounterViewModel(CurrentGame);
+            }
+            else if (CurrentGame == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] ERROR: CurrentGame is null. Cannot initialize EncounterViewModel.");
+            }
+
+            // Simulate heavy init if needed or just yield
+            await System.Threading.Tasks.Task.Delay(1);
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeEncounterEditorContent 완료");
+        }
+
+        private async System.Threading.Tasks.Task ShowEncounterEditorContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowEncounterEditorContent 시작");
+
+            PrepareEncounterEditorContentForReveal();
+            await InitializeEncounterEditorContentAsync();
+            RequestToolHostLayoutUpdate("ShowEncounterEditorContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowEncounterEditorContent");
+
+            await WaitObservable(BuildListEntranceAnimation(EncounterEditorContent));
+
+            EncounterEditorContent.Opacity = 1;
+            EncounterEditorContent.Visibility = Visibility.Visible;
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowEncounterEditorContent 완료");
+        }
+
+        // ----------------------------------------------------------------------------------
+        // [NEW] Staggered Drop-In Bounce for Modding Menu Buttons
+        // 모딩 메뉴 진입 시 버튼들이 위→아래, 왼→오 순서로 가볍게 등장
+        // ----------------------------------------------------------------------------------
+        private void AnimateModdingToolsEntrance()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] AnimateModdingToolsEntrance 시작 (한글)");
+
+                if (ModdingMenuContent == null || ModdingMenuContent.Items == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[ModWindow] AnimateModdingToolsEntrance 스킵: ModdingMenuContent가 null (한글)");
+                    return;
+                }
+
+                if (!AnimationConfig.ListEntrance_Enable)
+                {
+                    System.Diagnostics.Debug.WriteLine("[ModWindow] AnimateModdingToolsEntrance 스킵: ListEntrance 비활성 (한글)");
+                    return;
+                }
+
+                AttachModdingMedalRefractionEffects();
+
+                int itemCount = ModdingMenuContent.Items.Count;
+                System.Diagnostics.Debug.WriteLine($"[ModWindow] 모딩 메뉴 버튼 수: {itemCount} (한글)");
+
+                var orderedButtons = new List<(Button Button, double Y, double X)>();
+                bool requiresDeferredPass = false;
+
+                for (int i = 0; i < itemCount; i++)
+                {
+                    // ItemContainerGenerator로 각 버튼 컨테이너 가져오기
+                    var container = ModdingMenuContent.ItemContainerGenerator.ContainerFromIndex(i) as ContentPresenter;
+                    if (container == null)
+                    {
+                        requiresDeferredPass = true;
+                        continue;
+                    }
+
+                    // Button 찾기
+                    var button = FindVisualChild<Button>(container);
+                    if (button == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ModWindow] 버튼 {i}를 찾을 수 없음 (한글)");
+                        continue;
+                    }
+
+                    double x = 0;
+                    double y = 0;
+                    try
+                    {
+                        var transform = button.TransformToVisual(ModdingMenuContent);
+                        var position = transform.Transform(new Point(0, 0));
+                        x = position.X;
+                        y = position.Y;
+                    }
+                    catch
+                    {
+                        // 좌표 추출 실패 시 인덱스 순서 fallback
+                        x = i;
+                        y = i;
+                    }
+
+                    orderedButtons.Add((button, y, x));
+                }
+
+                if (requiresDeferredPass)
+                {
+                    // 컨테이너 생성이 늦은 경우 다음 레이아웃 사이클에서 다시 시도
+                    Dispatcher.InvokeAsync(AnimateModdingToolsEntrance, DispatcherPriority.Loaded);
+                    return;
+                }
+
+                if (orderedButtons.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("[ModWindow] AnimateModdingToolsEntrance 스킵: 대상 버튼 없음 (한글)");
+                    return;
+                }
+
+                // 요청 순서: 위→아래 우선, 같은 줄에서는 왼→오
+                orderedButtons.Sort((a, b) =>
+                {
+                    int yCompare = a.Y.CompareTo(b.Y);
+                    return yCompare != 0 ? yCompare : a.X.CompareTo(b.X);
+                });
+
+                var orderedElements = new List<FrameworkElement>(orderedButtons.Count);
+                foreach (var entry in orderedButtons)
+                    orderedElements.Add(entry.Button);
+
+                // Pre-hide all targets so nothing flashes before its stagger slot begins.
+                foreach (var element in orderedElements)
+                {
+                    UIAnimationsRx.ClearAnimation(element, UIElement.OpacityProperty);
+                    element.Visibility = Visibility.Visible;
+                    element.Opacity = AnimationConfig.ListEntrance_FromOpacity;
+                }
+
+                // Requirement: total entrance window must be 0.4s from first start to last completion.
+                double totalWindowMs = AnimationConfig.ModdingToolsEntrance_TotalWindowMs;
+                double itemDurationMs = Math.Max(1.0, Math.Min(AnimationConfig.ModdingToolsEntrance_ItemDurationMs, totalWindowMs));
+                double staggerDelayMs = 0.0;
+                if (orderedElements.Count > 1)
+                {
+                    staggerDelayMs = Math.Max(0.0, (totalWindowMs - itemDurationMs) / (orderedElements.Count - 1));
+                }
+
+                UIAnimationsRx.StaggeredDropIn(
+                    orderedElements,
+                    durationMs: itemDurationMs,
+                    staggerDelayMs: staggerDelayMs,
+                    fromOffsetY: AnimationConfig.ListEntrance_OffsetY,
+                    fromScale: AnimationConfig.ListEntrance_FromScale,
+                    toScale: AnimationConfig.ListEntrance_ToScale,
+                    fromOpacity: AnimationConfig.ListEntrance_FromOpacity,
+                    toOpacity: AnimationConfig.ListEntrance_ToOpacity,
+                    bounceAmplitude: AnimationConfig.ListEntrance_BounceAmplitude
+                ).Subscribe(
+                    _ => { },
+                    ex => System.Diagnostics.Debug.WriteLine($"[ModWindow] AnimateModdingToolsEntrance 오류: {ex.Message} (한글)")
+                );
+
+                System.Diagnostics.Debug.WriteLine("[ModWindow] AnimateModdingToolsEntrance 완료 (한글)");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModWindow] AnimateModdingToolsEntrance 오류: {ex.Message} (한글)");
+            }
+        }
+
+        // ----------------------------------------------------------------------------------
+        // [HELPER] VisualTree에서 특정 타입의 자식 요소 찾기
+        // ----------------------------------------------------------------------------------
+        private static T FindVisualChild<T>(DependencyObject obj) where T : DependencyObject
+        {
+            if (obj == null)
+                return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
+            {
+                var child = VisualTreeHelper.GetChild(obj, i);
+                if (child is T result)
+                    return result;
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                    return childOfChild;
+            }
+            return null;
+        }
+
+        private static T? FindVisualParentByName<T>(DependencyObject start, string name) where T : FrameworkElement
+        {
+            DependencyObject? current = start;
+            while (current != null)
+            {
+                if (current is T fe && fe.Name == name)
+                {
+                    return fe;
+                }
+
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            return null;
+        }
+
+        private static T? FindVisualParent<T>(DependencyObject start) where T : DependencyObject
+        {
+            DependencyObject? current = start;
+            while (current != null)
+            {
+                if (current is T typed)
+                {
+                    return typed;
+                }
+
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            return null;
+        }
+
+        private FrameworkElement ResolveTransitionOriginElement(System.Windows.Controls.Button btn)
+        {
+            return FindVisualParentByName<FrameworkElement>(btn, "MedalGrid") ?? btn;
+        }
+
+        private void SetTransitionOriginHidden(bool hidden)
+        {
+            if (_activeTransitionOriginElement == null) return;
+
+            _activeTransitionOriginElement.BeginAnimation(UIElement.OpacityProperty, null);
+            _activeTransitionOriginElement.Opacity = hidden ? 0 : 1;
+            _activeTransitionOriginElement.IsHitTestVisible = !hidden;
         }
 
         private void AnimateSteppedLayout(bool toStepped)
@@ -1193,148 +2090,75 @@ namespace ICN_T2.UI.WPF
         //   - MainContentRootGrid 마진을 기본(40px)으로 복원
         private void AnimateToolCompactLayout(bool enable)
         {
-            System.Diagnostics.Debug.WriteLine($"[ModWindow] AnimateToolCompactLayout 시작: enable={enable} (한글)");
-            #region agent log
-            try
-            {
-                var log = new
-                {
-                    runId = "run1",
-                    hypothesisId = "H4",
-                    location = "ModernModWindow.xaml.cs:AnimateToolCompactLayout:entry",
-                    message = "AnimateToolCompactLayout entry",
-                    data = new
-                    {
-                        enable,
-                        compactMargin = AnimationConfig.MainPanel_ToolMenu_CompactMargin,
-                        rootGridCompact = AnimationConfig.MainContentRootGrid_ToolMenu_CompactMargin
-                    },
-                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                };
-                System.IO.File.AppendAllText(@"c:\Users\home\Desktop\ICN_T2\.cursor\debug.log", System.Text.Json.JsonSerializer.Serialize(log) + Environment.NewLine);
-            }
-            catch
-            {
-            }
-            #endregion
-
-            if (MainContentPanel == null || MainContentRootGrid == null)
-            {
-                System.Diagnostics.Debug.WriteLine("[ModWindow] AnimateToolCompactLayout 실패: 필수 요소가 null (한글)");
-                return;
-            }
-
-            try
-            {
-                // 기존 애니메이션 클리어 (경쟁 상태 방지)
-                MainContentPanel.BeginAnimation(FrameworkElement.MarginProperty, null);
-                MainContentRootGrid.BeginAnimation(FrameworkElement.MarginProperty, null);
-
-                // 현재 마진 값 가져오기
-                var currentPanelMargin = MainContentPanel.Margin;
-                var currentGridMargin = MainContentRootGrid.Margin;
-
-                // 목표 마진 값 결정
-                Thickness targetPanelMargin;
-                Thickness targetGridMargin;
-
-                if (enable)
-                {
-                    // 도구 진입: MainContentPanel 전체를 왼쪽 마진과 동일하게
-                    double m = AnimationConfig.MainPanel_ToolMenu_CompactMargin;
-                    targetPanelMargin = new Thickness(m, m, m, m);
-
-                    // MainContentRootGrid도 compact하게
-                    targetGridMargin = new Thickness(AnimationConfig.MainContentRootGrid_ToolMenu_CompactMargin);
-
-                    System.Diagnostics.Debug.WriteLine($"[ModWindow] ToolCompact 활성화: Panel 전체={m}px, Grid 전체={AnimationConfig.MainContentRootGrid_ToolMenu_CompactMargin}px (한글)");
-                }
-                else
-                {
-                    // 모딩 메뉴 복귀: Panel은 왼쪽만 축소, 나머지는 원래대로 복원
-                    targetPanelMargin = new Thickness(
-                        AnimationConfig.MainPanel_ModdingMenu_MarginLeft,
-                        AnimationConfig.MainPanel_ModdingMenu_MarginTop,
-                        AnimationConfig.MainPanel_ModdingMenu_MarginRight,
-                        AnimationConfig.MainPanel_ModdingMenu_MarginBottom);
-
-                    // Grid는 기본 마진으로 복원
-                    targetGridMargin = new Thickness(AnimationConfig.MainContentRootGrid_Margin);
-
-                    System.Diagnostics.Debug.WriteLine($"[ModWindow] ToolCompact 비활성화: Panel=({AnimationConfig.MainPanel_ModdingMenu_MarginLeft},{AnimationConfig.MainPanel_ModdingMenu_MarginTop},{AnimationConfig.MainPanel_ModdingMenu_MarginRight},{AnimationConfig.MainPanel_ModdingMenu_MarginBottom}), Grid 전체={AnimationConfig.MainContentRootGrid_Margin}px (한글)");
-                }
-
-                // ThicknessAnimation 생성
-                var duration = TimeSpan.FromMilliseconds(AnimationConfig.Transition_LayoutDuration);
-                var easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
-
-                var panelAnim = new ThicknessAnimation(currentPanelMargin, targetPanelMargin, duration)
-                {
-                    EasingFunction = easing
-                };
-                var gridAnim = new ThicknessAnimation(currentGridMargin, targetGridMargin, duration)
-                {
-                    EasingFunction = easing
-                };
-
-                // 애니메이션 시작
-                MainContentPanel.BeginAnimation(FrameworkElement.MarginProperty, panelAnim);
-                MainContentRootGrid.BeginAnimation(FrameworkElement.MarginProperty, gridAnim);
-
-                System.Diagnostics.Debug.WriteLine($"[ModWindow] AnimateToolCompactLayout 완료: enable={enable} (한글)");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[ModWindow] AnimateToolCompactLayout 오류: {ex.Message} (한글)");
-            }
+            /* Disabled by request:
+             * Keep only vertical top-rise expansion (StepProgress / Background_TopRiseHeight),
+             * and remove main-content compact margin expansion logic.
+             * Keep this method as a no-op for history and potential re-enable later.
+             */
+            System.Diagnostics.Debug.WriteLine($"[ModWindow] AnimateToolCompactLayout skipped (disabled): enable={enable}");
         }
 
 
         private void UpdateSteppedPath()
         {
+            EnsureFixedGlassLayersActive();
             if (SteppedBackgroundBorder == null || MainContentPanel == null || TxtMainHeader == null)
             {
-                System.Diagnostics.Debug.WriteLine("[ModWindow] UpdateSteppedPath 스킵: 필수 요소가 null (한글)");
+                if (AnimationConfig.EnableVerboseLayoutLogs)
+                {
+                    System.Diagnostics.Debug.WriteLine("[ModWindow] UpdateSteppedPath 스킵: 필수 요소가 null (한글)");
+                }
                 return;
             }
-            #region agent log
-            try
+            if (AnimationConfig.EnableVerboseLayoutFileLog)
             {
-                var log = new
+                try
                 {
-                    runId = "run1",
-                    hypothesisId = "H3",
-                    location = "ModernModWindow.xaml.cs:UpdateSteppedPath:entry",
-                    message = "UpdateSteppedPath sizes",
-                    data = new
+                    var log = new
                     {
-                        stepProgress = StepProgress,
-                        riserProgress = RiserProgress,
-                        width = SteppedBackgroundBorder.ActualWidth,
-                        height = SteppedBackgroundBorder.ActualHeight
-                    },
-                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                };
-                System.IO.File.AppendAllText(@"c:\Users\home\Desktop\ICN_T2\.cursor\debug.log", System.Text.Json.JsonSerializer.Serialize(log) + Environment.NewLine);
+                        runId = "run1",
+                        hypothesisId = "H3",
+                        location = "ModernModWindow.xaml.cs:UpdateSteppedPath:entry",
+                        message = "UpdateSteppedPath sizes",
+                        data = new
+                        {
+                            stepProgress = StepProgress,
+                            riserProgress = RiserProgress,
+                            width = SteppedBackgroundBorder.ActualWidth,
+                            height = SteppedBackgroundBorder.ActualHeight
+                        },
+                        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                    };
+                    System.IO.File.AppendAllText(@"c:\Users\home\Desktop\ICN_T2\.cursor\debug.log", System.Text.Json.JsonSerializer.Serialize(log) + Environment.NewLine);
+                }
+                catch
+                {
+                }
             }
-            catch
-            {
-            }
-            #endregion
 
             // [FIX] 실제 그려지는 컨테이너(SteppedBackgroundBorder)의 크기를 기준으로 지오메트리 계산
             // 이전: MainContentPanel.ActualWidth/Height 사용 → 코너 아크가 컨테이너 밖으로 나가 클리핑됨
             // 수정: SteppedBackgroundBorder의 실제 렌더 영역 크기 사용
-            double width = SteppedBackgroundBorder.ActualWidth;
-            double height = SteppedBackgroundBorder.ActualHeight;
+            // [NEW] 유리창 내부 크기 미세 조절 (Glass_Margin 적용)
+            double width = SteppedBackgroundBorder.ActualWidth - AnimationConfig.Glass_MarginRight;
+            double height = SteppedBackgroundBorder.ActualHeight - AnimationConfig.Glass_MarginBottom;
+
             if (width <= 0 || height <= 0)
             {
-                System.Diagnostics.Debug.WriteLine($"[ModWindow] UpdateSteppedPath 스킵: width={width}, height={height} (한글)");
+                if (AnimationConfig.EnableVerboseLayoutLogs)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ModWindow] UpdateSteppedPath 스킵: width={width}, height={height} (한글)");
+                }
                 return;
             }
 
             double progress = StepProgress;
-            System.Diagnostics.Debug.WriteLine($"[ModWindow] UpdateSteppedPath 실행: progress={progress:F2}, width={width:F0}, height={height:F0} (한글)");
+            if (AnimationConfig.EnableVerboseLayoutLogs &&
+                (DateTime.UtcNow - _lastSteppedPathLogAtUtc).TotalMilliseconds >= 250)
+            {
+                _lastSteppedPathLogAtUtc = DateTime.UtcNow;
+                System.Diagnostics.Debug.WriteLine($"[ModWindow] UpdateSteppedPath 실행: progress={progress:F2}, width={width:F0}, height={height:F0} (한글)");
+            }
 
             double radius = AnimationConfig.Background_CornerRadius;
 
@@ -1353,7 +2177,7 @@ namespace ICN_T2.UI.WPF
             double currentSidebarX = _sidebarStartX - ((_sidebarStartX - targetSidebarX) * sidebarProgress);
 
             double headerHeight = Math.Max(AnimationConfig.Header_MinHeight, TxtMainHeader.ActualHeight);
-            double normalTopY = headerHeight + AnimationConfig.Header_ContentSpacing;
+            double normalTopY = headerHeight + AnimationConfig.Header_ContentSpacing + AnimationConfig.Glass_MarginTop;
 
             TxtMainHeader.UpdateLayout();
 
@@ -1361,8 +2185,15 @@ namespace ICN_T2.UI.WPF
 
             // [FIX] 위쪽 상승: 0.5 이하에서는 상승 없음, 0.5~1.0에서만 상승
             // 모딩 메뉴(0.5)에서는 평평, 도구 메뉴(1.0)에서만 계단식 확장
+            // [구현 완료] 도구 메뉴 확장 로직: 윗쪽만 확장 (RightContentArea 너비 확장 없음)
+            // - 모딩 메뉴(StepProgress=0.5): 왼쪽으로 확장, 위쪽 평평
+            // - 도구 메뉴(StepProgress=1.0): 윗쪽으로만 추가 확장 (Background_TopRiseHeight)
             double riseProgress = Math.Max(0.0, (progress - 0.5) * 2.0); // 0.5→0.0, 1.0→1.0
             double stepTopY = normalTopY - (AnimationConfig.Background_TopRiseHeight * riseProgress) - constantRiser;
+
+            // [NEW] 왼쪽 마진 적용 (Glass_MarginLeft)
+            // currentSidebarX 계산 후 추가로 밀어줌
+            currentSidebarX += AnimationConfig.Glass_MarginLeft;
 
             var geometry = new StreamGeometry();
             using (StreamGeometryContext ctx = geometry.Open())
@@ -1429,70 +2260,144 @@ namespace ICN_T2.UI.WPF
             }
             geometry.Freeze();
             SteppedBackgroundPath.Data = geometry;
+
+            // [FIX] Apply clipping to force glass layers to follow the stepped geometry
+            // This ensures the glass effect respects the dynamic "stepped" shape (riser)
+            if (MainContentRefractionLayer != null) MainContentRefractionLayer.Clip = geometry;
+            if (MainContentTintLayer != null) MainContentTintLayer.Clip = geometry;
+            if (MainContentDarkBlurOverlay != null) MainContentDarkBlurOverlay.Clip = geometry;
+            if (MainContentInsetEdgeLayer != null) MainContentInsetEdgeLayer.Clip = geometry;
+
+            // 패널 자체 클리핑은 조심해야 함 (그림자 잘릴 수 있음) -> 내부 컨텐츠만 클리핑
+            // MainContentRootGrid는 클리핑하지 않음 (팝업 등 고려)
+
         }
 
         private void ModernModWindow_SizeChanged(object sender, System.Windows.SizeChangedEventArgs e)
         {
             UpdateSteppedPath();
 
-            if (CharacterInfoContent.Visibility == Visibility.Visible &&
-                _navStack.Peek().State == NavState.ToolWindow)
+            bool anyToolVisible = CharacterInfoContent.Visibility == Visibility.Visible ||
+                                  CharacterScaleContent.Visibility == Visibility.Visible ||
+                                  YokaiStatsContent.Visibility == Visibility.Visible ||
+                                  EncounterEditorContent.Visibility == Visibility.Visible;
+            if (!anyToolVisible) return;
+            if (_navStack.Count == 0 || _navStack.Peek().State != NavState.ToolWindow) return;
+
+            var currentSize = GetCurrentWindowSize();
+            if (!_lastToolLayoutWindowSize.IsEmpty && IsSameWindowSize(currentSize, _lastToolLayoutWindowSize))
             {
-                // ShowCharacterInfoContent()의 위치 재계산 로직 재사용
-                AdjustCharacterInfoPosition();
+                return;
             }
+
+            BeginToolLayoutSession("Window size changed");
+            RequestToolHostLayoutUpdate("Window size changed", force: true);
+            FinalizeToolLayoutOnce("Window size changed");
         }
 
         private void AdjustCharacterInfoPosition()
         {
-            var headerTransform = TxtMainHeader.TransformToVisual(this);
-            var headerBottom = headerTransform.Transform(new System.Windows.Point(0, 0)).Y + TxtMainHeader.ActualHeight;
+            var parent = CharacterInfoContent.Parent as FrameworkElement
+                ?? CharacterScaleContent.Parent as FrameworkElement
+                ?? YokaiStatsContent.Parent as FrameworkElement
+                ?? EncounterEditorContent.Parent as FrameworkElement;
+            if (parent == null || parent.ActualWidth <= 0 || parent.ActualHeight <= 0) return;
 
-            // [NEW] ToolCompact 모드일 때 헤더/콘텐츠 간격 축소
-            bool isToolCompact = _navStack.Count > 0 && _navStack.Peek().State == NavState.ToolWindow;
-            double headerSpacing = isToolCompact ? AnimationConfig.Tool_HeaderContentSpacing : AnimationConfig.CharacterInfo_HeaderSpacingNormal;
-            double contentTop = headerBottom + headerSpacing;
+            double headerHeight = Math.Max(AnimationConfig.Header_MinHeight, TxtMainHeader.ActualHeight);
+            double normalTopY = headerHeight + AnimationConfig.Header_ContentSpacing + AnimationConfig.Glass_MarginTop;
+            double riseProgress = Math.Max(0.0, (StepProgress - 0.5) * 2.0);
+            double expandedTopY = normalTopY - (AnimationConfig.Background_TopRiseHeight * riseProgress) - (_riserMaxHeight * RiserProgress);
+            double baseTop = expandedTopY + AnimationConfig.ToolHost_TopPadding;
+            double contentTop = baseTop - AnimationConfig.ToolHost_MoveUpPx;
 
             // Character Info
             if (CharacterInfoContent.Parent is Canvas)
                 Canvas.SetTop(CharacterInfoContent, contentTop);
             else
-                CharacterInfoContent.Margin = new Thickness(0, contentTop, 0, AnimationConfig.CharacterInfo_MarginBottom);
-
-            CharacterInfoContent.Width = MainContentPanel.ActualWidth;
-            CharacterInfoContent.Height = this.ActualHeight - contentTop - AnimationConfig.CharacterInfo_MarginBottom;
+                CharacterInfoContent.Margin = new Thickness(
+                    AnimationConfig.ToolHost_LeftPadding,
+                    contentTop,
+                    AnimationConfig.ToolHost_RightPadding,
+                    AnimationConfig.ToolHost_BottomPadding);
+            CharacterInfoContent.ClearValue(FrameworkElement.WidthProperty);
+            CharacterInfoContent.ClearValue(FrameworkElement.HeightProperty);
 
             // Character Scale
             if (CharacterScaleContent.Parent is Canvas)
                 Canvas.SetTop(CharacterScaleContent, contentTop);
             else
-                CharacterScaleContent.Margin = new Thickness(0, contentTop, 0, AnimationConfig.CharacterInfo_MarginBottom);
-
-            CharacterScaleContent.Width = MainContentPanel.ActualWidth;
-            CharacterScaleContent.Height = this.ActualHeight - contentTop - AnimationConfig.CharacterInfo_MarginBottom;
+                CharacterScaleContent.Margin = new Thickness(
+                    AnimationConfig.ToolHost_LeftPadding,
+                    contentTop,
+                    AnimationConfig.ToolHost_RightPadding,
+                    AnimationConfig.ToolHost_BottomPadding);
+            CharacterScaleContent.ClearValue(FrameworkElement.WidthProperty);
+            CharacterScaleContent.ClearValue(FrameworkElement.HeightProperty);
 
             // Yokai Stats
             if (YokaiStatsContent.Parent is Canvas)
                 Canvas.SetTop(YokaiStatsContent, contentTop);
             else
-                YokaiStatsContent.Margin = new Thickness(0, contentTop, 0, AnimationConfig.CharacterInfo_MarginBottom);
+                YokaiStatsContent.Margin = new Thickness(
+                    AnimationConfig.ToolHost_LeftPadding,
+                    contentTop,
+                    AnimationConfig.ToolHost_RightPadding,
+                    AnimationConfig.ToolHost_BottomPadding);
+            YokaiStatsContent.ClearValue(FrameworkElement.WidthProperty);
+            YokaiStatsContent.ClearValue(FrameworkElement.HeightProperty);
 
-            YokaiStatsContent.Width = MainContentPanel.ActualWidth;
-            YokaiStatsContent.Height = this.ActualHeight - contentTop - AnimationConfig.CharacterInfo_MarginBottom;
+            // Encounter Editor
+            if (EncounterEditorContent.Parent is Canvas)
+                Canvas.SetTop(EncounterEditorContent, contentTop);
+            else
+                EncounterEditorContent.Margin = new Thickness(
+                    AnimationConfig.ToolHost_LeftPadding,
+                    contentTop,
+                    AnimationConfig.ToolHost_RightPadding,
+                    AnimationConfig.ToolHost_BottomPadding);
+            EncounterEditorContent.ClearValue(FrameworkElement.WidthProperty);
+            EncounterEditorContent.ClearValue(FrameworkElement.HeightProperty);
+        }
+
+        private void LeftSidebarBorder_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateSidebarClip();
+        }
+
+        private void UpdateSidebarClip()
+        {
+            if (LeftSidebarBorder == null) return;
+
+            double width = LeftSidebarBorder.ActualWidth;
+            double height = LeftSidebarBorder.ActualHeight;
+            if (width <= 0.0 || height <= 0.0) return;
+
+            double corner = LeftSidebarBorder.CornerRadius.TopLeft;
+            double radiusX = Math.Max(0.0, Math.Min(corner, width * 0.5));
+            double radiusY = Math.Max(0.0, Math.Min(corner, height * 0.5));
+
+            var clip = new RectangleGeometry(new Rect(0, 0, width, height), radiusX, radiusY);
+            clip.Freeze();
+            LeftSidebarBorder.Clip = clip;
         }
 
 
         private void HideAllToolContents()
         {
+            ResetToolLayoutSession("HideAllToolContents");
+
             CharacterInfoContent.Visibility = Visibility.Collapsed;
             CharacterInfoContent.Opacity = 0;
-            
+
             CharacterScaleContent.Visibility = Visibility.Collapsed;
             CharacterScaleContent.Opacity = 0;
 
             YokaiStatsContent.Visibility = Visibility.Collapsed;
             YokaiStatsContent.Opacity = 0;
-            
+
+            EncounterEditorContent.Visibility = Visibility.Collapsed;
+            EncounterEditorContent.Opacity = 0;
+
             // Hide other future tools here
         }
 
@@ -1501,7 +2406,12 @@ namespace ICN_T2.UI.WPF
             // Connected tools:
             // Index 1: Character Info
             // Index 2: Character Scale
-            return vm.IconIndex == 1 || vm.IconIndex == 2;
+            // Index 3: Yokai Stats
+            // Index 4: Encounter Editor
+            return vm.IconIndex == 1 ||
+                   vm.IconIndex == 2 ||
+                   vm.IconIndex == 3 ||
+                   vm.IconIndex == 4;
         }
 
         private void SetToolEmptyToolbar(bool showOnlyBack, bool fadeIn = true)
@@ -1546,6 +2456,16 @@ namespace ICN_T2.UI.WPF
 
         private async void RecoverFromSelection()
         {
+            // Cancel any previous RecoverFromSelection still running
+            _recoverCts?.Cancel();
+            _recoverCts?.Dispose();
+            var cts = new System.Threading.CancellationTokenSource();
+            _recoverCts = cts;
+            var token = cts.Token;
+
+            // [NEW] Disable all user interaction during back animation
+            this.IsHitTestVisible = false;
+
             try
             {
                 System.Diagnostics.Debug.WriteLine("[ModWindow] RecoverFromSelection 시작 - Rx 기반 전환됨 (한글)");
@@ -1579,8 +2499,9 @@ namespace ICN_T2.UI.WPF
                     ProxyIcon.Source = new BitmapImage(new Uri(vm.IconBPath, UriKind.Absolute));
                     ProxyText.Text = vm.Title;
 
-                    ProxyIconContainer.Width = _activeTransitionButton.ActualWidth;
-                    ProxyIconContainer.Height = _activeTransitionButton.ActualHeight;
+                    double proxySize = Math.Max(1.0, Math.Min(_activeTransitionButton.ActualWidth, _activeTransitionButton.ActualHeight));
+                    ProxyIconContainer.Width = proxySize;
+                    ProxyIconContainer.Height = proxySize;
                 }
 
                 TransitionProxy.Visibility = Visibility.Visible;
@@ -1588,13 +2509,12 @@ namespace ICN_T2.UI.WPF
                 System.Windows.Controls.Panel.SetZIndex(TransitionProxy, AnimationConfig.ZIndex_MedalProxyBelowHeader);
 
                 // --- SETUP BOOK (Closed State initially) ---
-                // [NEW] ToolCompact Layout 비활성화: 모딩 메뉴로 복귀하므로 일반 레이아웃으로 복원
-                AnimateToolCompactLayout(false);
-
                 ModMenuTranslate.BeginAnimation(TranslateTransform.XProperty, null);
                 ModMenuTranslate.X = 0;
                 ModMenuSlideTranslate.BeginAnimation(TranslateTransform.XProperty, null);
-                ModMenuSlideTranslate.X = -AnimationConfig.Book_SlideOffset; // 속지를 왼쪽으로 시작 (닫힌 상태)
+                ModMenuSlideTranslate.X = -AnimationConfig.Book_SlideOffset;
+                _isBookMarginAnimationRunning = false;
+                SetBookLayoutMargins(CalculateBookLeftForProgress(StepProgress), clearAnimations: true);
 
                 ModdingMenuContent.BeginAnimation(UIElement.OpacityProperty, null);
                 ModdingMenuContent.Opacity = 1;
@@ -1626,7 +2546,9 @@ namespace ICN_T2.UI.WPF
                 TxtMainHeader.Text = NormalizeHeaderText(ViewModel.HeaderText);
 
                 // [FIX] 모딩 메뉴로 복귀 시 헤더 위치 원래대로 복원
-                TxtMainHeader.Margin = new Thickness(10, 0, 0, 30);
+                TxtMainHeader.Margin = GetHeaderDefaultMargin();
+
+                token.ThrowIfCancellationRequested();
 
                 // --- STEP 1: BOOK FADE IN (Fast) - Rx 기반 ---
                 await Observable.Merge(
@@ -1634,9 +2556,9 @@ namespace ICN_T2.UI.WPF
                     UIAnimationsRx.Fade(TxtMainHeader, 0, 1, AnimationConfig.Fade_Duration)
                 ).DefaultIfEmpty();
 
+                token.ThrowIfCancellationRequested();
+
                 // --- STEP 2: BOOK OPEN + FLY BACK + CONTENT SLIDE ---
-                // 책 열기와 속지 슬라이드를 동시에 시작
-                // ModMenuSlideTranslate를 직접 애니메이션
                 var duration = TimeSpan.FromMilliseconds(AnimationConfig.Book_OpenDuration);
                 var ease = new SineEase { EasingMode = EasingMode.EaseIn };
                 var slideAnim = new DoubleAnimation(-AnimationConfig.Book_SlideOffset, 0, duration) { EasingFunction = ease };
@@ -1670,7 +2592,9 @@ namespace ICN_T2.UI.WPF
 
                 // 책 열기를 기다림
                 await bookOpenTask;
-                await System.Threading.Tasks.Task.Delay(AnimationConfig.Medal_FlyDuration);
+                await System.Threading.Tasks.Task.Delay(AnimationConfig.Medal_FlyDuration, token);
+
+                token.ThrowIfCancellationRequested();
 
                 // --- STEP 3: LAND ---
                 var landDuration = TimeSpan.FromMilliseconds(AnimationConfig.Medal_LandDuration);
@@ -1684,21 +2608,59 @@ namespace ICN_T2.UI.WPF
                 scaleT?.BeginAnimation(ScaleTransform.ScaleXProperty, animScaleDownX);
                 scaleT?.BeginAnimation(ScaleTransform.ScaleYProperty, animScaleDownY);
 
-                await System.Threading.Tasks.Task.Delay(AnimationConfig.Medal_LandDuration);
+                await System.Threading.Tasks.Task.Delay(AnimationConfig.Medal_LandDuration, token);
 
                 // Cleanup
                 TransitionProxy.Visibility = Visibility.Collapsed;
-                _activeTransitionButton.Visibility = Visibility.Visible;
+                SetTransitionOriginHidden(false);
+                _activeTransitionOriginElement = null;
                 _isSelectionFinished = false;
 
                 System.Diagnostics.Debug.WriteLine("[ModWindow] RecoverFromSelection 완료 (한글)");
             }
+            catch (OperationCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] RecoverFromSelection 취소됨 - 즉시 안정 상태로 복원 (한글)");
+                FinishRecoverImmediately();
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[ModWindow] RecoverFromSelection 오류: {ex.Message}");
+                FinishRecoverImmediately();
+            }
+            finally
+            {
+                // [NEW] Restore user interaction after animation completes
+                this.IsHitTestVisible = true;
             }
         }
 
+        /// <summary>
+        /// RecoverFromSelection이 취소되었을 때, UI를 모딩 메뉴 안정 상태로 즉시 복원합니다.
+        /// </summary>
+        private void FinishRecoverImmediately()
+        {
+            // RecoverFromSelection 고유: 프록시 정지
+            TransitionProxy.BeginAnimation(UIElement.OpacityProperty, null);
+            TransitionProxy.Visibility = Visibility.Collapsed;
+            SetTransitionOriginHidden(false);
+            _activeTransitionOriginElement = null;
+            _isSelectionFinished = false;
+
+            // 진행 중인 모든 애니메이션을 정지 (값 설정은 하지 않음 - ResetSelectionAnimationToModdingMenuState가 처리)
+            BookCover.BeginAnimation(UIElement.OpacityProperty, null);
+            CoverScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            CoverScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            CoverSkew.BeginAnimation(SkewTransform.AngleYProperty, null);
+            CoverTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            ModMenuSlideTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            ModMenuTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            ModdingMenuContent.BeginAnimation(UIElement.OpacityProperty, null);
+            ModdingMenuButtons.BeginAnimation(UIElement.OpacityProperty, null);
+            TxtMainHeader.BeginAnimation(UIElement.OpacityProperty, null);
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] FinishRecoverImmediately - animations stopped");
+        }
 
 
         // ReactiveUI ViewModel
@@ -1716,6 +2678,11 @@ namespace ICN_T2.UI.WPF
 
             // ViewModel의 ModdingTools를 ItemsSource로 연결
             ModdingMenuContent.ItemsSource = ViewModel.ModdingTools;
+            SaveOverlayItemsControl.ItemsSource = _saveSelectionItems;
+            SetBookLayoutMargins(CalculateBookLeftForProgress(0.0), clearAnimations: false);
+            TxtMainHeader.Margin = GetHeaderDefaultMargin();
+            ModdingMenuContent.AddHandler(Button.MouseEnterEvent, new System.Windows.Input.MouseEventHandler(ModdingMenuButton_MouseEnter), true);
+            ModdingMenuContent.AddHandler(Button.MouseLeaveEvent, new System.Windows.Input.MouseEventHandler(ModdingMenuButton_MouseLeave), true);
 
             // 기존 로컬 컬렉션을 ViewModel 컬렉션으로 교체
             ModdingTools = ViewModel.ModdingTools;
@@ -1725,6 +2692,8 @@ namespace ICN_T2.UI.WPF
             // InitializeModdingTools는 ViewModel에서 처리하므로 제거
 
             _navStack.Push(new NavItem { State = NavState.ProjectList });
+            ShowProjectSectionImmediate();
+            _suppressSidebarNavCheckedEvents = false;
 
             Loaded += OnWindowLoaded;
             SizeChanged += OnWindowSizeChanged;
@@ -1746,7 +2715,7 @@ namespace ICN_T2.UI.WPF
                     message = "OnWindowLoaded apply layout",
                     data = new
                     {
-                        mainMargin = AnimationConfig.MainPanel_ProjectMenu_MarginAll,
+                        mainMarginTop = AnimationConfig.MainPanel_ProjectMenu_MarginTop,
                         rightMarginRight = AnimationConfig.RightContent_MarginRight,
                         rightMarginBottom = AnimationConfig.RightContent_MarginBottom,
                         rootGridMargin = AnimationConfig.MainContentRootGrid_Margin
@@ -1763,9 +2732,13 @@ namespace ICN_T2.UI.WPF
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // MainContentPanel 크기 적용 (AnimationConfig)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            MainContentPanel.Margin = new Thickness(AnimationConfig.MainPanel_ProjectMenu_MarginAll);
+            MainContentPanel.Margin = new Thickness(
+                AnimationConfig.MainPanel_ProjectMenu_MarginLeft,
+                AnimationConfig.MainPanel_ProjectMenu_MarginTop,
+                AnimationConfig.MainPanel_ProjectMenu_MarginRight,
+                AnimationConfig.MainPanel_ProjectMenu_MarginBottom);
             MainContentPanel.CornerRadius = new CornerRadius(AnimationConfig.MainPanel_CornerRadius);
-            System.Diagnostics.Debug.WriteLine($"[ModWindow] MainContentPanel 적용: Margin={AnimationConfig.MainPanel_ProjectMenu_MarginAll}, CornerRadius={AnimationConfig.MainPanel_CornerRadius} (한글)");
+            System.Diagnostics.Debug.WriteLine($"[ModWindow] MainContentPanel 적용: Margins (L,T,R,B)=({AnimationConfig.MainPanel_ProjectMenu_MarginLeft},{AnimationConfig.MainPanel_ProjectMenu_MarginTop},{AnimationConfig.MainPanel_ProjectMenu_MarginRight},{AnimationConfig.MainPanel_ProjectMenu_MarginBottom}), CornerRadius={AnimationConfig.MainPanel_CornerRadius} (한글)");
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // MainContentRootGrid 크기 적용 (AnimationConfig)
@@ -1782,8 +2755,22 @@ namespace ICN_T2.UI.WPF
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // ProjectListView 내부 여백 적용 (AnimationConfig)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            ProjectListView.Margin = new Thickness(AnimationConfig.ProjectListView_Margin);
-            System.Diagnostics.Debug.WriteLine($"[ModWindow] ProjectListView 적용: Margin={AnimationConfig.ProjectListView_Margin} (한글)");
+            ProjectListView.Margin = new Thickness(
+                AnimationConfig.ProjectListView_Margin,
+                AnimationConfig.ProjectListView_Margin,
+                AnimationConfig.ProjectListView_Margin,
+                AnimationConfig.ProjectListView_MarginBottom);
+            System.Diagnostics.Debug.WriteLine($"[ModWindow] ProjectListView 적용: Margin L/T/R={AnimationConfig.ProjectListView_Margin}, B={AnimationConfig.ProjectListView_MarginBottom} (한글)");
+
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // Sidebar & Spacer 크기 적용 (AnimationConfig)
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            LeftSidebarBorder.Width = AnimationConfig.Sidebar_ProjectMenu_Width;
+            SidebarSpacerCol.Width = new GridLength(AnimationConfig.RightContent_SpacerWidth);
+            LeftSidebarBorder.SizeChanged -= LeftSidebarBorder_SizeChanged;
+            LeftSidebarBorder.SizeChanged += LeftSidebarBorder_SizeChanged;
+            UpdateSidebarClip();
+            System.Diagnostics.Debug.WriteLine($"[ModWindow] Sidebar/Spacer 적용: SidebarWidth={AnimationConfig.Sidebar_ProjectMenu_Width}, SpacerWidth={AnimationConfig.RightContent_SpacerWidth} (한글)");
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // StepProgress 초기화
@@ -1791,13 +2778,1042 @@ namespace ICN_T2.UI.WPF
             StepProgress = 0;
             UpdateSteppedPath();
 
+            if (GlobalTitleBar != null)
+            {
+                GlobalTitleBar.BeginAnimation(UIElement.OpacityProperty, null);
+                GlobalTitleBar.Visibility = Visibility.Collapsed;
+                GlobalTitleBar.Opacity = 0;
+                GlobalTitleBar.IsHitTestVisible = false;
+            }
+            if (GlobalTitleBarTranslate != null)
+            {
+                GlobalTitleBarTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+                GlobalTitleBarTranslate.Y = AnimationConfig.TitleBar_HiddenOffsetY;
+            }
+
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // [Phase 4] Mica Backdrop 초기화 (Windows 11+)
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // [FIX] 투명 창(AllowsTransparency=True)과 DWM Mica는 호환되지 않아 흰색 배경이 강제됨.
+            // 둥근 모서리를 위해 Mica를 비활성화합니다.
+            // InitializeMicaBackdrop();
+
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // [Phase 5] Glass Refraction Shader 초기화
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            InitializeGlassRefractionShader();
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                AttachBookRefractionEffect();
+                AttachModdingMedalRefractionEffects();
+            }, DispatcherPriority.Loaded);
+
             System.Diagnostics.Debug.WriteLine("[ModWindow] OnWindowLoaded 완료 (한글)");
+        }
+
+        /// <summary>
+        /// [Phase 4] Mica Backdrop 초기화
+        /// Windows 11 이상에서 시스템 수준의 Acrylic/Mica 효과 적용
+        /// - Fallback: Windows 10 이하에서는 기존 WPF 스타일 유지
+        /// </summary>
+        private void InitializeMicaBackdrop()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] Mica Backdrop 초기화 시작 (한글)");
+
+                // Windows 11+ 에서만 Mica 적용
+                bool micaApplied = MicaBackdropHelper.ApplyMicaBackdrop(this, useDarkMode: false);
+
+                if (micaApplied)
+                {
+                    System.Diagnostics.Debug.WriteLine("[ModWindow] ✅ Mica Backdrop 적용 성공 (Windows 11+) (한글)");
+
+                    // Mica가 적용되면 Window 배경을 투명하게 설정하여 효과가 보이도록 함
+                    // 기존 배경 색상 제거 (XAML의 Background="Transparent" 유지)
+                    this.Background = System.Windows.Media.Brushes.Transparent;
+
+                    // [선택] MainContentPanel 배경을 약간 투명하게 하여 Mica가 비치도록 함
+                    // MainContentPanel.Background = new SolidColorBrush(Color.FromArgb(0xE0, 0xFF, 0xFF, 0xFF));
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[ModWindow] ⚠️ Mica 미적용 (Windows 10 이하 또는 실패) - 기존 스타일 유지 (한글)");
+                    // Fallback: 기존 WPF 스타일 유지 (이미 적용된 Acrylic 색상 사용)
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModWindow] Mica Backdrop 초기화 오류: {ex.Message} (한글)");
+                // 오류 시 기존 스타일로 계속 진행
+            }
+        }
+
+        /// <summary>
+        /// [Phase 5] Glass Refraction Shader 초기화
+        /// iOS 26 제어센터 스타일 유리 굴절 효과를 버튼 단위로 적용
+        /// - HLSL Pixel Shader 3.0 기반
+        /// - 마우스 위치 기반 동적 왜곡
+        /// - 시간 기반 애니메이션
+        /// </summary>
+        private void InitializeGlassRefractionShader()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[GlassShader] 초기화 시작 (한글)");
+
+                // === Main Content: Liquid Glass (투명, 가벼운 배경) ===
+                _fixedBackdropRefractionEffect = new GlassRefractionEffect
+                {
+                    RefractionStrength = AnimationConfig.MainContent_GlassRefractionStrength,
+                    NoiseScale = AnimationConfig.MainContent_GlassNoiseScale,
+                    MouseX = 0.5,
+                    MouseY = 0.5,
+                    AnimationTime = 0.0,
+                    SpecularStrength = AnimationConfig.MainContent_GlassSpecular,
+                    InnerShadowSize = AnimationConfig.MainContent_GlassInnerShadow,
+                    Density = AnimationConfig.MainContent_GlassDensity,
+                    MouseRadius = AnimationConfig.MainContent_GlassMouseRadius,
+                    MouseFalloffPower = AnimationConfig.MainContent_GlassMouseFalloffPower,
+                    MouseOffsetStrength = AnimationConfig.MainContent_GlassMouseOffsetStrength,
+                    EdgeHighlightStrength = AnimationConfig.MainContent_GlassEdgeHighlightStrength,
+                    NormalMap = GetGlassNormalMapBrush()
+                };
+
+                // === Sidebar: Book profile (요청: 사이드바도 책과 같은 안정적인 질감) ===
+                _sidebarRefractionEffect = new GlassRefractionEffect
+                {
+                    RefractionStrength = AnimationConfig.Sidebar_GlassRefractionStrength,
+                    NoiseScale = AnimationConfig.Sidebar_GlassNoiseScale,
+                    MouseX = 0.5,
+                    MouseY = 0.5,
+                    AnimationTime = 0.0,
+                    SpecularStrength = AnimationConfig.Sidebar_GlassSpecular,
+                    InnerShadowSize = AnimationConfig.Sidebar_GlassInnerShadow,
+                    Density = AnimationConfig.Sidebar_GlassDensity,
+                    MouseRadius = AnimationConfig.Sidebar_GlassMouseRadius,
+                    MouseFalloffPower = AnimationConfig.Sidebar_GlassMouseFalloffPower,
+                    MouseOffsetStrength = AnimationConfig.Sidebar_GlassMouseOffsetStrength,
+                    EdgeHighlightStrength = AnimationConfig.Sidebar_GlassEdgeHighlightStrength,
+                    NormalMap = GetGlassNormalMapBrush()
+                };
+
+                // Book page glass (behind medal buttons): weaker than global backdrop.
+                _bookRefractionEffect = new GlassRefractionEffect
+                {
+                    RefractionStrength = AnimationConfig.Book_GlassRefractionStrength,
+                    NoiseScale = AnimationConfig.Book_GlassNoiseScale,
+                    MouseX = 0.5,
+                    MouseY = 0.5,
+                    AnimationTime = 0.0,
+                    SpecularStrength = AnimationConfig.Book_GlassSpecular,
+                    InnerShadowSize = AnimationConfig.Book_GlassInnerShadow,
+                    Density = AnimationConfig.Book_GlassDensity,
+                    MouseRadius = AnimationConfig.Book_GlassMouseRadius,
+                    MouseFalloffPower = AnimationConfig.Book_GlassMouseFalloffPower,
+                    MouseOffsetStrength = AnimationConfig.Book_GlassMouseOffsetStrength,
+                    EdgeHighlightStrength = AnimationConfig.Book_GlassEdgeHighlightStrength,
+                    NormalMap = GetGlassNormalMapBrush()
+                };
+
+                // Main content tint/overlay layers stay transparent and effect-free.
+                _tintLayerRefractionEffect = null;
+                _blurOverlayRefractionEffect = null;
+
+                // Legacy global panel shader remains disabled.
+                _glassRefractionEffect = null;
+                if (CharacterInfoContent != null) CharacterInfoContent.Effect = null;
+
+                // Attach fixed refraction to main content glass layer
+                if (MainContentRefractionLayer != null)
+                {
+                    MainContentRefractionLayer.Effect = _fixedBackdropRefractionEffect;
+                }
+
+                // Attach Liquid Glass to sidebar with higher density profile.
+                if (LeftSidebarBorder != null)
+                {
+                    LeftSidebarBorder.Effect = _sidebarRefractionEffect;
+                }
+
+                // Tint layer remains transparent (refraction-only glass behavior).
+                if (MainContentTintLayer != null)
+                {
+                    var tintBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(AnimationConfig.MainContent_GlassTint));
+                    tintBrush.Freeze();
+                    MainContentTintLayer.Background = tintBrush;
+                    MainContentTintLayer.Effect = null;
+                }
+
+                // Overlay layer remains transparent (no extra blur tint).
+                if (MainContentDarkBlurOverlay != null)
+                {
+                    var brush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(AnimationConfig.MainContent_GlassOverlayTint));
+                    brush.Freeze();
+                    MainContentDarkBlurOverlay.Background = brush;
+                    MainContentDarkBlurOverlay.Effect = AnimationConfig.MainContent_GlassBlurRadius > 0
+                        ? new BlurEffect { Radius = AnimationConfig.MainContent_GlassBlurRadius, RenderingBias = RenderingBias.Performance }
+                        : null;
+                }
+
+                // Attach glass to tagged tool panels (all tool views).
+                AttachToolPanelRefractionEffects();
+                AttachToolInteractiveRefractionEffects();
+                AttachBookRefractionEffect();
+                AttachModdingMedalRefractionEffects();
+                EnsureFixedGlassLayersActive();
+
+                // Window MouseMove 이벤트 연결 (마우스 추적)
+                this.MouseMove += Window_MouseMove_ShaderUpdate;
+
+                // CompositionTarget.Rendering 이벤트 연결 (VSync 동기화)
+                System.Windows.Media.CompositionTarget.Rendering += UpdateShaderAnimation;
+
+                System.Diagnostics.Debug.WriteLine("[GlassShader] ✅ 초기화 완료 - CompositionTarget.Rendering 애니메이션 시작 (한글)");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GlassShader] 초기화 오류: {ex.Message} (한글)");
+                // Fallback: Shader 없이 계속 진행
+                _glassRefractionEffect = null;
+                _fixedBackdropRefractionEffect = null;
+                _sidebarRefractionEffect = null;
+                _bookRefractionEffect = null;
+            }
+        }
+
+        /// <summary>
+        /// [Phase 5] 마우스 위치 기반 Shader 업데이트
+        /// Window 좌표를 0.0~1.0 정규화하여 Shader에 전달
+        /// </summary>
+        private void IconRefractionButton_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn) return;
+            if (_buttonRefractionEffects.TryGetValue(btn, out var existing) &&
+                ReferenceEquals(btn.Effect, existing))
+            {
+                btn.Effect = null;
+            }
+
+            _buttonRefractionEffects.Remove(btn);
+        }
+
+        private void IconRefractionButton_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn) return;
+            if (!_buttonRefractionEffects.TryGetValue(btn, out var effect)) return;
+
+            if (ReferenceEquals(btn.Effect, effect))
+            {
+                btn.Effect = null;
+            }
+
+            _buttonRefractionEffects.Remove(btn);
+        }
+
+        private static T? FindVisualChildByName<T>(DependencyObject obj, string name) where T : FrameworkElement
+        {
+            if (obj == null) return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
+            {
+                var child = VisualTreeHelper.GetChild(obj, i);
+                if (child is T named && string.Equals(named.Name, name, StringComparison.Ordinal))
+                {
+                    return named;
+                }
+
+                var result = FindVisualChildByName<T>(child, name);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            return null;
+        }
+
+        private FrameworkElement? ResolveBookGlassBackplate()
+        {
+            if (ModdingMenuContent == null) return null;
+            if (_bookGlassBackplate != null && _bookGlassBackplate.IsLoaded)
+            {
+                return _bookGlassBackplate;
+            }
+
+            ModdingMenuContent.ApplyTemplate();
+            _bookGlassBackplate =
+                ModdingMenuContent.Template?.FindName(AnimationConfig.Book_GlassTag, ModdingMenuContent) as FrameworkElement
+                ?? FindVisualChildByName<FrameworkElement>(ModdingMenuContent, AnimationConfig.Book_GlassTag);
+
+            return _bookGlassBackplate;
+        }
+
+        private void AttachBookRefractionEffect()
+        {
+            if (ModdingMenuContent == null || _bookRefractionEffect == null) return;
+
+            var bookLayer = ResolveBookGlassBackplate();
+            if (bookLayer == null) return;
+
+            if (!ReferenceEquals(bookLayer.Effect, _bookRefractionEffect))
+            {
+                bookLayer.Effect = _bookRefractionEffect;
+            }
+        }
+
+        private void DetachBookRefractionEffect()
+        {
+            if (_bookGlassBackplate != null)
+            {
+                _bookGlassBackplate.Effect = null;
+            }
+
+            _bookGlassBackplate = null;
+        }
+
+        private void AttachModdingMedalRefractionEffects()
+        {
+            try
+            {
+                if (ModdingMenuContent == null || ModdingMenuContent.Items == null) return;
+
+                int itemCount = ModdingMenuContent.Items.Count;
+                if (itemCount <= 0) return;
+
+                // Cleanup stale visuals first (e.g. template refresh).
+                var stale = new List<FrameworkElement>();
+                foreach (var pair in _moddingMedalRefractionEffects)
+                {
+                    if (!pair.Key.IsVisible || VisualTreeHelper.GetParent(pair.Key) == null)
+                    {
+                        pair.Key.SizeChanged -= MedalBackplate_SizeChanged;
+                        if (ReferenceEquals(pair.Key.Effect, pair.Value))
+                        {
+                            pair.Key.Effect = null;
+                        }
+                        stale.Add(pair.Key);
+                    }
+                }
+
+                foreach (var key in stale)
+                {
+                    _moddingMedalRefractionEffects.Remove(key);
+                }
+
+                for (int i = 0; i < itemCount; i++)
+                {
+                    var container = ModdingMenuContent.ItemContainerGenerator.ContainerFromIndex(i) as ContentPresenter;
+                    if (container == null) continue;
+
+                    var backplate = FindVisualChildByName<Ellipse>(container, "MedalBackplate");
+                    FrameworkElement target = backplate ?? (FrameworkElement?)FindVisualChild<Button>(container);
+                    if (target == null) continue;
+
+                    if (_moddingMedalRefractionEffects.ContainsKey(target))
+                    {
+                        // Keep backdrop sampling in sync with animated/resized book page.
+                        if (backplate != null)
+                        {
+                            backplate.Fill = GetMedalBackdropBrush(backplate);
+                        }
+                        target.SizeChanged -= MedalBackplate_SizeChanged;
+                        target.SizeChanged += MedalBackplate_SizeChanged;
+                        UpdateMedalBackplateClip(target);
+                        continue;
+                    }
+
+                    var effect = new GlassRefractionEffect
+                    {
+                        RefractionStrength = AnimationConfig.ModdingMedal_GlassRefractionStrength,
+                        NoiseScale = AnimationConfig.ModdingMedal_GlassNoiseScale,
+                        MouseX = 0.5,
+                        MouseY = 0.5,
+                        AnimationTime = _shaderTime,
+                        SpecularStrength = AnimationConfig.ModdingMedal_GlassSpecular,
+                        InnerShadowSize = AnimationConfig.ModdingMedal_GlassInnerShadow,
+                        Density = AnimationConfig.ModdingMedal_GlassDensity,
+                        MouseRadius = AnimationConfig.ModdingMedal_GlassMouseRadius,
+                        MouseFalloffPower = AnimationConfig.ModdingMedal_GlassMouseFalloffPower,
+                        MouseOffsetStrength = AnimationConfig.ModdingMedal_GlassMouseOffsetStrength,
+                        EdgeHighlightStrength = AnimationConfig.ModdingMedal_GlassEdgeHighlightStrength,
+                        NormalMap = GetGlassNormalMapBrush()
+                    };
+
+                    if (backplate != null)
+                    {
+                        backplate.Fill = GetMedalBackdropBrush(backplate);
+                    }
+                    target.SizeChanged -= MedalBackplate_SizeChanged;
+                    target.SizeChanged += MedalBackplate_SizeChanged;
+                    UpdateMedalBackplateClip(target);
+                    target.Effect = effect;
+                    _moddingMedalRefractionEffects[target] = effect;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GlassShader] modding medal attach error: {ex.Message}");
+            }
+        }
+
+        private void DetachModdingMedalRefractionEffects()
+        {
+            foreach (var pair in _moddingMedalRefractionEffects)
+            {
+                pair.Key.SizeChanged -= MedalBackplate_SizeChanged;
+                if (ReferenceEquals(pair.Key.Effect, pair.Value))
+                {
+                    pair.Key.Effect = null;
+                }
+            }
+
+            _moddingMedalRefractionEffects.Clear();
+        }
+
+        private void MedalBackplate_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is FrameworkElement element)
+            {
+                UpdateMedalBackplateClip(element);
+            }
+        }
+
+        private static void UpdateMedalBackplateClip(FrameworkElement element)
+        {
+            double width = element.ActualWidth > 0 ? element.ActualWidth : element.Width;
+            double height = element.ActualHeight > 0 ? element.ActualHeight : element.Height;
+            if (width <= 0 || height <= 0) return;
+
+            var radiusX = Math.Max(0.0, (width * 0.5) - 0.5);
+            var radiusY = Math.Max(0.0, (height * 0.5) - 0.5);
+            element.Clip = new EllipseGeometry(new Point(width * 0.5, height * 0.5), radiusX, radiusY);
+        }
+
+        private System.Windows.Media.Brush GetMedalBackdropBrush(FrameworkElement medalElement)
+        {
+            var bookLayer = ResolveBookGlassBackplate();
+            if (bookLayer == null || medalElement.ActualWidth <= 0 || medalElement.ActualHeight <= 0)
+            {
+                return System.Windows.Media.Brushes.Transparent;
+            }
+
+            if (bookLayer.ActualWidth <= 0 || bookLayer.ActualHeight <= 0)
+            {
+                return System.Windows.Media.Brushes.Transparent;
+            }
+
+            try
+            {
+                var transform = medalElement.TransformToVisual(bookLayer);
+                Point topLeft = transform.Transform(new Point(0, 0));
+
+                return new VisualBrush
+                {
+                    Visual = bookLayer,
+                    Stretch = Stretch.None,
+                    ViewboxUnits = BrushMappingMode.Absolute,
+                    Viewbox = new Rect(topLeft.X, topLeft.Y, medalElement.ActualWidth, medalElement.ActualHeight),
+                    ViewportUnits = BrushMappingMode.RelativeToBoundingBox,
+                    Viewport = new Rect(0, 0, 1, 1),
+                    AlignmentX = AlignmentX.Left,
+                    AlignmentY = AlignmentY.Top
+                };
+            }
+            catch
+            {
+                return System.Windows.Media.Brushes.Transparent;
+            }
+        }
+
+        private void AttachToolPanelRefractionEffects()
+        {
+            try
+            {
+                var timer = System.Diagnostics.Stopwatch.StartNew();
+                var roots = new FrameworkElement?[]
+                {
+                    CharacterInfoContent,
+                    CharacterScaleContent,
+                    YokaiStatsContent,
+                    EncounterEditorContent
+                };
+
+                // User-observed regression: tool panel visuals look correct before shader attach,
+                // then appear shrunken/clipped after late attach.
+                // Stabilization policy: do not mutate tool backdrop borders at runtime.
+                void ResetBackdrop(FrameworkElement panel)
+                {
+                    if (panel.Tag is not string tag ||
+                        !string.Equals(tag, AnimationConfig.ToolPanel_BackdropTag, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
+                    if (panel is not Border)
+                    {
+                        return;
+                    }
+
+                    if (panel.Effect is BlurEffect || panel.Effect is GlassRefractionEffect)
+                    {
+                        panel.Effect = null;
+                    }
+                }
+
+                foreach (var root in roots)
+                {
+                    if (root == null) continue;
+
+                    ResetBackdrop(root);
+
+                    foreach (var panel in FindVisualChildren<FrameworkElement>(root))
+                    {
+                        ResetBackdrop(panel);
+                    }
+                }
+
+                if (_toolPanelRefractionEffects.Count > 0)
+                {
+                    foreach (var pair in _toolPanelRefractionEffects)
+                    {
+                        if (ReferenceEquals(pair.Key.Effect, pair.Value))
+                        {
+                            pair.Key.Effect = null;
+                        }
+                    }
+                    _toolPanelRefractionEffects.Clear();
+                }
+
+                _toolPanelAttachRetryPending = false;
+                _toolPanelAttachRetryCount = 0;
+                System.Diagnostics.Debug.WriteLine($"[Perf] AttachToolPanelRefractionEffects: {timer.ElapsedMilliseconds}ms, runtime tool backdrop disabled");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GlassShader] tool panel attach error: {ex.Message}");
+            }
+        }
+
+        private ImageBrush GetGlassNormalMapBrush()
+        {
+            if (_glassNormalMapBrush != null)
+            {
+                return _glassNormalMapBrush;
+            }
+
+            const int size = 128;
+            var bmp = new WriteableBitmap(size, size, 96, 96, PixelFormats.Bgra32, null);
+            var pixels = new int[size * size];
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    double u = (double)x / size;
+                    double v = (double)y / size;
+
+                    double nx =
+                        Math.Sin((u * Math.PI * 2.0 * 3.0) + (v * Math.PI * 2.0 * 0.7)) * 0.45 +
+                        Math.Sin((u * Math.PI * 2.0 * 1.3) - (v * Math.PI * 2.0 * 2.1)) * 0.25;
+                    double ny =
+                        Math.Cos((u * Math.PI * 2.0 * 2.2) - (v * Math.PI * 2.0 * 0.9)) * 0.45 +
+                        Math.Sin((u * Math.PI * 2.0 * 0.8) + (v * Math.PI * 2.0 * 2.8)) * 0.25;
+
+                    nx = Math.Max(-1.0, Math.Min(1.0, nx));
+                    ny = Math.Max(-1.0, Math.Min(1.0, ny));
+
+                    byte r = (byte)(127.5 + nx * 127.5);
+                    byte g = (byte)(127.5 + ny * 127.5);
+                    byte b = 255;
+                    byte a = 255;
+
+                    pixels[y * size + x] = b | (g << 8) | (r << 16) | (a << 24);
+                }
+            }
+
+            bmp.WritePixels(new Int32Rect(0, 0, size, size), pixels, size * 4, 0);
+
+            _glassNormalMapBrush = new ImageBrush(bmp)
+            {
+                Stretch = Stretch.Fill,
+                TileMode = TileMode.Tile,
+                ViewportUnits = BrushMappingMode.Absolute,
+                Viewport = new Rect(0, 0, 96, 96),
+                ViewboxUnits = BrushMappingMode.RelativeToBoundingBox,
+                Viewbox = new Rect(0, 0, 1, 1)
+            };
+
+            _glassNormalMapBrush.Freeze();
+            return _glassNormalMapBrush;
+        }
+
+        private System.Windows.Media.Brush GetToolPanelBackdropBrush(FrameworkElement panel)
+        {
+            if (BackgroundContainer == null || panel.ActualWidth <= 0 || panel.ActualHeight <= 0)
+            {
+                return GetToolPanelBackdropBrushFallback();
+            }
+
+            try
+            {
+                var transform = panel.TransformToVisual(BackgroundContainer);
+                Point topLeft = transform.Transform(new Point(0, 0));
+                double bgWidth = BackgroundContainer.ActualWidth;
+                double bgHeight = BackgroundContainer.ActualHeight;
+
+                // If tool panel extends outside backdrop bounds (e.g. moved upward), absolute-viewbox
+                // sampling produces clipped/blank edges after effects load. Use stable fallback brush.
+                if (topLeft.X < 0 ||
+                    topLeft.Y < 0 ||
+                    (topLeft.X + panel.ActualWidth) > bgWidth ||
+                    (topLeft.Y + panel.ActualHeight) > bgHeight)
+                {
+                    return GetToolPanelBackdropBrushFallback();
+                }
+
+                return new VisualBrush
+                {
+                    Visual = BackgroundContainer,
+                    Stretch = Stretch.None,
+                    ViewboxUnits = BrushMappingMode.Absolute,
+                    Viewbox = new Rect(topLeft.X, topLeft.Y, panel.ActualWidth, panel.ActualHeight),
+                    ViewportUnits = BrushMappingMode.RelativeToBoundingBox,
+                    Viewport = new Rect(0, 0, 1, 1),
+                    AlignmentX = AlignmentX.Left,
+                    AlignmentY = AlignmentY.Top
+                };
+            }
+            catch
+            {
+                return GetToolPanelBackdropBrushFallback();
+            }
+        }
+
+        private System.Windows.Media.Brush GetToolPanelBackdropBrushFallback()
+        {
+            if (_toolPanelBackdropBrush != null)
+            {
+                return _toolPanelBackdropBrush;
+            }
+
+            if (BackgroundContainer == null)
+            {
+                return System.Windows.Media.Brushes.Transparent;
+            }
+
+            _toolPanelBackdropBrush = new VisualBrush
+            {
+                Visual = BackgroundContainer,
+                Stretch = Stretch.None,
+                AlignmentX = AlignmentX.Left,
+                AlignmentY = AlignmentY.Top
+            };
+
+            return _toolPanelBackdropBrush;
+        }
+
+        private bool ShouldRetryToolPanelAttach()
+        {
+            // Retry only in tool-flow context, not at startup/project list state.
+            if (ToolSidebarButtons?.Visibility == Visibility.Visible) return true;
+            if (CharacterInfoContent?.Visibility == Visibility.Visible) return true;
+            if (CharacterScaleContent?.Visibility == Visibility.Visible) return true;
+            if (YokaiStatsContent?.Visibility == Visibility.Visible) return true;
+
+            return _navStack.Count > 0 && _navStack.Peek().State == NavState.ToolWindow;
+        }
+
+        private void AttachToolInteractiveRefractionEffects()
+        {
+            try
+            {
+                if (!AnimationConfig.ToolInteractive_EnableRefraction)
+                {
+                    int clearedCount = 0;
+                    foreach (var pair in _toolInteractiveRefractionEffects)
+                    {
+                        if (ReferenceEquals(pair.Key.Effect, pair.Value))
+                        {
+                            pair.Key.Effect = null;
+                        }
+                        clearedCount++;
+                    }
+
+                    _toolInteractiveRefractionEffects.Clear();
+
+                    // Hard clear any lingering refraction on tool view tree.
+                    var cleanupRoots = new FrameworkElement?[] { CharacterInfoContent, CharacterScaleContent, YokaiStatsContent };
+                    foreach (var root in cleanupRoots)
+                    {
+                        if (root == null) continue;
+                        foreach (var element in FindVisualChildren<FrameworkElement>(root))
+                        {
+                            if (element.Effect is GlassRefractionEffect)
+                            {
+                                element.Effect = null;
+                            }
+                        }
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[Perf] AttachToolInteractiveRefractionEffects: disabled by config, cleared={clearedCount}");
+                    return;
+                }
+
+                var timer = System.Diagnostics.Stopwatch.StartNew();
+                int attachedCount = 0;
+                var activeTargets = new HashSet<FrameworkElement>();
+                var roots = new FrameworkElement?[]
+                {
+                    CharacterInfoContent,
+                    CharacterScaleContent,
+                    YokaiStatsContent,
+                    EncounterEditorContent
+                };
+
+                void TryAttach(FrameworkElement target)
+                {
+                    if (target.Tag is not string tag ||
+                        !string.Equals(tag, AnimationConfig.ToolInteractive_GlassTag, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
+                    activeTargets.Add(target);
+
+                    if (!_toolInteractiveRefractionEffects.TryGetValue(target, out var effect))
+                    {
+                        effect = new GlassRefractionEffect
+                        {
+                            RefractionStrength = AnimationConfig.ToolInteractive_GlassRefractionStrength,
+                            NoiseScale = AnimationConfig.ToolInteractive_GlassNoiseScale,
+                            SpecularStrength = 0.06,
+                            InnerShadowSize = 0.010,
+                            Density = 0.24,
+                            // Keep distortion as a static glass look.
+                            // Hover-dependent mouse warping causes perceived blur shifts.
+                            MouseRadius = 0.0,
+                            MouseFalloffPower = 2.20,
+                            MouseOffsetStrength = 0.0,
+                            EdgeHighlightStrength = 0.05,
+                            NormalMap = GetGlassNormalMapBrush()
+                        };
+                        _toolInteractiveRefractionEffects[target] = effect;
+                    }
+
+                    if (!ReferenceEquals(target.Effect, effect))
+                    {
+                        target.Effect = effect;
+                    }
+
+                    if (target is Border border)
+                    {
+                        if (border.Background == null || border.Background == System.Windows.Media.Brushes.Transparent)
+                        {
+                            border.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF));
+                        }
+
+                        if (border.BorderThickness.Left <= 0 && border.BorderThickness.Top <= 0 &&
+                            border.BorderThickness.Right <= 0 && border.BorderThickness.Bottom <= 0)
+                        {
+                            border.BorderThickness = new Thickness(1.0);
+                        }
+
+                        if (border.BorderBrush == null || border.BorderBrush == System.Windows.Media.Brushes.Transparent)
+                        {
+                            border.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+                        }
+                    }
+
+                    attachedCount++;
+                }
+
+                foreach (var root in roots)
+                {
+                    if (root == null) continue;
+
+                    TryAttach(root);
+                    foreach (var target in FindVisualChildren<FrameworkElement>(root))
+                    {
+                        TryAttach(target);
+                    }
+                }
+
+                var staleTargets = new List<FrameworkElement>();
+                foreach (var pair in _toolInteractiveRefractionEffects)
+                {
+                    if (activeTargets.Contains(pair.Key))
+                    {
+                        continue;
+                    }
+
+                    if (ReferenceEquals(pair.Key.Effect, pair.Value))
+                    {
+                        pair.Key.Effect = null;
+                    }
+
+                    staleTargets.Add(pair.Key);
+                }
+
+                foreach (var stale in staleTargets)
+                {
+                    _toolInteractiveRefractionEffects.Remove(stale);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[Perf] AttachToolInteractiveRefractionEffects: {timer.ElapsedMilliseconds}ms, attached={attachedCount}, active={_toolInteractiveRefractionEffects.Count}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GlassShader] tool interactive attach error: {ex.Message}");
+            }
+        }
+
+        private void EnsureFixedGlassLayersActive()
+        {
+            bool anyToolVisible = (CharacterInfoContent?.Visibility == Visibility.Visible) ||
+                                  (CharacterScaleContent?.Visibility == Visibility.Visible) ||
+                                  (YokaiStatsContent?.Visibility == Visibility.Visible) ||
+                                  (EncounterEditorContent?.Visibility == Visibility.Visible);
+
+            if (MainContentRefractionLayer != null)
+            {
+                MainContentRefractionLayer.Visibility = Visibility.Visible;
+                MainContentRefractionLayer.Opacity = 1.0;
+                if (_fixedBackdropRefractionEffect != null &&
+                    !ReferenceEquals(MainContentRefractionLayer.Effect, _fixedBackdropRefractionEffect))
+                {
+                    MainContentRefractionLayer.Effect = _fixedBackdropRefractionEffect;
+                }
+            }
+
+            if (MainContentTintLayer != null)
+            {
+                MainContentTintLayer.Visibility = Visibility.Visible;
+                MainContentTintLayer.Opacity = 1.0;
+
+                var tint = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(AnimationConfig.MainContent_GlassTint);
+                if (MainContentTintLayer.Background is not SolidColorBrush tintBrush || tintBrush.Color != tint)
+                {
+                    var brush = new SolidColorBrush(tint);
+                    brush.Freeze();
+                    MainContentTintLayer.Background = brush;
+                }
+                MainContentTintLayer.Effect = null;
+            }
+
+            if (MainContentDarkBlurOverlay != null)
+            {
+                MainContentDarkBlurOverlay.Visibility = Visibility.Visible;
+                MainContentDarkBlurOverlay.Opacity = 1.0;
+
+                var tint = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(AnimationConfig.MainContent_GlassOverlayTint);
+                if (MainContentDarkBlurOverlay.Background is not SolidColorBrush sb || sb.Color != tint)
+                {
+                    var brush = new SolidColorBrush(tint);
+                    brush.Freeze();
+                    MainContentDarkBlurOverlay.Background = brush;
+                }
+                MainContentDarkBlurOverlay.Effect = (!anyToolVisible && AnimationConfig.MainContent_GlassBlurRadius > 0)
+                    ? new BlurEffect { Radius = AnimationConfig.MainContent_GlassBlurRadius, RenderingBias = RenderingBias.Performance }
+                    : null;
+            }
+        }
+
+        private void Window_MouseMove_ShaderUpdate(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (_buttonRefractionEffects.Count == 0 &&
+                _moddingMedalRefractionEffects.Count == 0 &&
+                (!AnimationConfig.ToolInteractive_EnableRefraction || _toolInteractiveRefractionEffects.Count == 0) &&
+                _fixedBackdropRefractionEffect == null &&
+                _sidebarRefractionEffect == null &&
+                _bookRefractionEffect == null) return;
+
+            try
+            {
+                // Virtualized list items can appear after first attach.
+                if (AnimationConfig.ToolInteractive_EnableRefraction)
+                {
+                    AttachToolInteractiveRefractionEffects();
+                }
+
+                if (ModdingMenuContent?.Visibility == Visibility.Visible &&
+                    _moddingMedalRefractionEffects.Count == 0)
+                {
+                    AttachModdingMedalRefractionEffects();
+                }
+
+                foreach (var pair in _buttonRefractionEffects)
+                {
+                    var btn = pair.Key;
+                    var effect = pair.Value;
+                    if (!btn.IsVisible || btn.ActualWidth <= 0.0 || btn.ActualHeight <= 0.0) continue;
+
+                    var localPos = e.GetPosition(btn);
+                    double localX = Math.Max(0.0, Math.Min(1.0, localPos.X / btn.ActualWidth));
+                    double localY = Math.Max(0.0, Math.Min(1.0, localPos.Y / btn.ActualHeight));
+                    effect.MouseX = localX;
+                    effect.MouseY = localY;
+                }
+
+                // Medal profile: allow range outside [0,1] so falloff can stay localized near the button.
+                foreach (var pair in _moddingMedalRefractionEffects)
+                {
+                    var medal = pair.Key;
+                    var effect = pair.Value;
+                    if (!medal.IsVisible || medal.ActualWidth <= 0.0 || medal.ActualHeight <= 0.0) continue;
+
+                    var localPos = e.GetPosition(medal);
+                    double localX = localPos.X / medal.ActualWidth;
+                    double localY = localPos.Y / medal.ActualHeight;
+                    effect.MouseX = localX;
+                    effect.MouseY = localY;
+                }
+
+                if (AnimationConfig.ToolInteractive_EnableRefraction)
+                {
+                    foreach (var pair in _toolInteractiveRefractionEffects)
+                    {
+                        var target = pair.Key;
+                        var effect = pair.Value;
+                        if (!target.IsVisible || target.ActualWidth <= 0.0 || target.ActualHeight <= 0.0) continue;
+
+                        var localPos = e.GetPosition(target);
+                        double localX = Math.Max(0.0, Math.Min(1.0, localPos.X / target.ActualWidth));
+                        double localY = Math.Max(0.0, Math.Min(1.0, localPos.Y / target.ActualHeight));
+                        effect.MouseX = localX;
+                        effect.MouseY = localY;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GlassShader] MouseMove 오류: {ex.Message} (한글)");
+            }
+
+            // === Liquid Glass: Fixed backdrop & sidebar mouse tracking ===
+            try
+            {
+                if (_fixedBackdropRefractionEffect != null && MainContentRefractionLayer != null &&
+                    MainContentRefractionLayer.IsVisible && MainContentRefractionLayer.ActualWidth > 0)
+                {
+                    var pos = e.GetPosition(MainContentRefractionLayer);
+                    _fixedBackdropRefractionEffect.MouseX = Math.Max(0.0, Math.Min(1.0, pos.X / MainContentRefractionLayer.ActualWidth));
+                    _fixedBackdropRefractionEffect.MouseY = Math.Max(0.0, Math.Min(1.0, pos.Y / MainContentRefractionLayer.ActualHeight));
+                }
+
+                if (_sidebarRefractionEffect != null && LeftSidebarBorder != null &&
+                    LeftSidebarBorder.IsVisible && LeftSidebarBorder.ActualWidth > 0)
+                {
+                    var pos = e.GetPosition(LeftSidebarBorder);
+                    _sidebarRefractionEffect.MouseX = Math.Max(0.0, Math.Min(1.0, pos.X / LeftSidebarBorder.ActualWidth));
+                    _sidebarRefractionEffect.MouseY = Math.Max(0.0, Math.Min(1.0, pos.Y / LeftSidebarBorder.ActualHeight));
+                }
+
+                if (_bookRefractionEffect != null)
+                {
+                    var bookLayer = ResolveBookGlassBackplate();
+                    if (bookLayer != null && bookLayer.IsVisible && bookLayer.ActualWidth > 0)
+                    {
+                        var pos = e.GetPosition(bookLayer);
+                        _bookRefractionEffect.MouseX = Math.Max(0.0, Math.Min(1.0, pos.X / bookLayer.ActualWidth));
+                        _bookRefractionEffect.MouseY = Math.Max(0.0, Math.Min(1.0, pos.Y / bookLayer.ActualHeight));
+                    }
+                }
+            }
+            catch { /* non-critical */ }
+        }
+
+        /// <summary>
+        /// [Phase 5] Shader 애니메이션 업데이트 (CompositionTarget.Rendering)
+        /// VSync와 동기화된 부드러운 애니메이션
+        /// </summary>
+        private void UpdateShaderAnimation(object? sender, EventArgs e)
+        {
+            if (_buttonRefractionEffects.Count == 0 &&
+                _moddingMedalRefractionEffects.Count == 0 &&
+                _toolInteractiveRefractionEffects.Count == 0 &&
+                _fixedBackdropRefractionEffect == null &&
+                _bookRefractionEffect == null &&
+                _sidebarRefractionEffect == null &&
+                _tintLayerRefractionEffect == null &&
+                _glassRefractionEffect == null) return;
+
+            try
+            {
+                // RenderingEventArgs를 통해 정확한 타이밍 제어 가능
+                if (e is RenderingEventArgs args)
+                {
+                    // === Time 증가 ===
+                    // 60FPS 기준 약 0.01 증가 (16.6ms)
+                    // RenderingTime은 계속 증가하므로 이를 이용해 smooth loop 생성
+
+                    // 4초 주기 루프 (4000ms)
+                    double totalSeconds = args.RenderingTime.TotalSeconds;
+                    double loopDuration = 4.0;
+
+                    _shaderTime = (totalSeconds % loopDuration) / loopDuration; // 0.0 ~ 1.0
+
+                    // Shader에 전달
+                    foreach (var effect in _buttonRefractionEffects.Values)
+                    {
+                        effect.AnimationTime = _shaderTime;
+                    }
+
+                    foreach (var effect in _toolInteractiveRefractionEffects.Values)
+                    {
+                        effect.AnimationTime = _shaderTime;
+                    }
+
+                    foreach (var effect in _moddingMedalRefractionEffects.Values)
+                    {
+                        effect.AnimationTime = _shaderTime;
+                    }
+
+                    if (_fixedBackdropRefractionEffect != null)
+                    {
+                        _fixedBackdropRefractionEffect.AnimationTime = _shaderTime;
+                    }
+
+                    if (_sidebarRefractionEffect != null)
+                    {
+                        _sidebarRefractionEffect.AnimationTime = _shaderTime;
+                    }
+
+                    if (_bookRefractionEffect != null)
+                    {
+                        _bookRefractionEffect.AnimationTime = _shaderTime;
+                    }
+
+                    // 틴트 레이어 애니메이션 업데이트
+                    if (_tintLayerRefractionEffect != null)
+                    {
+                        _tintLayerRefractionEffect.AnimationTime = _shaderTime;
+                    }
+
+                    if (_blurOverlayRefractionEffect != null)
+                    {
+                        _blurOverlayRefractionEffect.AnimationTime = _shaderTime;
+                    }
+
+                    // Legacy global effect path kept for compatibility.
+                    if (_glassRefractionEffect != null)
+                    {
+                        _glassRefractionEffect.AnimationTime = _shaderTime;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GlassShader] Animation 오류: {ex.Message} (한글)");
+            }
         }
 
         private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (!IsLoaded) return; // why: Loaded 이전 SizeChanged 방지
-            UpdateSteppedPath();
+            ModernModWindow_SizeChanged(sender, e);
+            AttachBookRefractionEffect();
+            AttachModdingMedalRefractionEffects();
         }
 
 
@@ -1815,6 +3831,18 @@ namespace ICN_T2.UI.WPF
                 // Bypass for UI demo
             }
 
+            // Full Save is a menu action, not a tool screen.
+            if (index == 10)
+            {
+                if (parameter is System.Windows.Controls.Button saveButton)
+                {
+                    PlaySaveButtonInPlacePulse(saveButton);
+                }
+
+                ExecuteIntegratedSaveAction();
+                return;
+            }
+
             // 인덱스 0번 (캐릭터 정보) 등 버튼 기반 도구 실행
             if (parameter is System.Windows.Controls.Button btn)
             {
@@ -1827,9 +3855,6 @@ namespace ICN_T2.UI.WPF
                 // Fallback switch
                 switch (index)
                 {
-                    case 10: // Full Save
-                        System.Windows.MessageBox.Show("전체 저장 기능 (구현 예정)");
-                        break;
                     case 11: // Settings
                         System.Windows.MessageBox.Show("설정 창 오픈");
                         break;
@@ -1837,6 +3862,344 @@ namespace ICN_T2.UI.WPF
                         System.Windows.MessageBox.Show($"{ModdingTools[index].EngTitle} - 준비 중입니다.");
                         break;
                 }
+            }
+        }
+
+        private void ExecuteIntegratedSaveAction()
+        {
+            CollectPendingSaveItems();
+            SaveOverlaySummaryText.Text = _saveSelectionItems.Count == 0
+                ? "변경된 항목이 없습니다."
+                : $"변경된 항목 {_saveSelectionItems.Count}개";
+            SaveOverlayStatusText.Text = _saveSelectionItems.Count == 0
+                ? "저장할 변경사항이 없습니다."
+                : "저장할 항목을 선택한 뒤 저장 또는 선택 저장을 실행하세요.";
+            ShowSaveSelectionOverlay(true);
+        }
+
+        private void CollectPendingSaveItems()
+        {
+            _saveSelectionItems.Clear();
+            _saveParticipantByToolId.Clear();
+
+            AddPendingChangesFromContext(EncounterEditorContent?.DataContext, "encounter", "Encounter");
+            AddPendingChangesFromContext(CharacterScaleContent?.DataContext, "char_scale", "Character Scale");
+            AddPendingChangesFromContext(YokaiStatsContent?.DataContext, "yokai_stats", "Yokai Stats");
+        }
+
+        private void AddPendingChangesFromContext(object? dataContext, string fallbackToolId, string fallbackDisplayName)
+        {
+            if (dataContext == null)
+            {
+                return;
+            }
+
+            if (dataContext is ISelectiveToolSaveParticipant selective)
+            {
+                IReadOnlyList<ToolPendingChange> pending = selective.GetPendingChanges();
+                if (pending.Count == 0)
+                {
+                    return;
+                }
+
+                string toolId = string.IsNullOrWhiteSpace(selective.ToolId) ? fallbackToolId : selective.ToolId;
+                string displayName = string.IsNullOrWhiteSpace(selective.ToolDisplayName) ? fallbackDisplayName : selective.ToolDisplayName;
+                _saveParticipantByToolId[toolId] = selective;
+
+                foreach (ToolPendingChange change in pending)
+                {
+                    _saveSelectionItems.Add(new SaveSelectionItemViewModel
+                    {
+                        ToolId = toolId,
+                        ToolDisplayName = displayName,
+                        ChangeId = change.ChangeId,
+                        DisplayName = change.DisplayName,
+                        Description = change.Description,
+                        IsChecked = true
+                    });
+                }
+
+                return;
+            }
+
+            if (dataContext is IToolSaveParticipant legacy && legacy.HasPendingChanges)
+            {
+                string toolId = $"legacy:{fallbackToolId}";
+                _saveParticipantByToolId[toolId] = legacy;
+                _saveSelectionItems.Add(new SaveSelectionItemViewModel
+                {
+                    ToolId = toolId,
+                    ToolDisplayName = fallbackDisplayName,
+                    ChangeId = "__legacy_all__",
+                    DisplayName = $"{fallbackDisplayName} 전체 변경사항",
+                    Description = "이 도구는 부분 저장을 지원하지 않습니다.",
+                    IsChecked = true
+                });
+            }
+        }
+
+        private void ShowSaveSelectionOverlay(bool visible)
+        {
+            SaveSelectionOverlay.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            SaveSelectionOverlay.IsHitTestVisible = visible;
+            SaveOverlaySaveSelectedButton.IsEnabled = visible && _saveSelectionItems.Count > 0;
+            SaveOverlaySaveAllButton.IsEnabled = visible && _saveSelectionItems.Count > 0;
+        }
+
+        private void SaveOverlayCloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowSaveSelectionOverlay(false);
+        }
+
+        private void SaveOverlaySaveSelectedButton_Click(object sender, RoutedEventArgs e)
+        {
+            SaveSelectedPendingItems();
+        }
+
+        private void SaveOverlaySaveAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            SaveAllPendingItems();
+        }
+
+        private void SaveSelectedPendingItems(bool isFullSave = false)
+        {
+            var selected = _saveSelectionItems.Where(x => x.IsChecked).ToList();
+            if (selected.Count == 0)
+            {
+                SaveOverlayStatusText.Text = "저장할 항목을 선택하세요.";
+                return;
+            }
+
+            var grouped = selected.GroupBy(x => x.ToolId);
+            var saved = new List<(string ToolId, string ChangeId)>();
+            var failed = new Dictionary<(string ToolId, string ChangeId), string>();
+
+            foreach (var group in grouped)
+            {
+                if (!_saveParticipantByToolId.TryGetValue(group.Key, out object? participant))
+                {
+                    continue;
+                }
+
+                if (participant is ISelectiveToolSaveParticipant selective)
+                {
+                    ToolSaveBatchResult result = selective.SavePendingChanges(group.Select(x => x.ChangeId).ToArray());
+                    foreach (string savedId in result.SavedChangeIds)
+                    {
+                        saved.Add((group.Key, savedId));
+                    }
+
+                    foreach (var pair in result.FailedChangeReasons)
+                    {
+                        failed[(group.Key, pair.Key)] = pair.Value;
+                    }
+                }
+                else if (participant is IToolSaveParticipant legacy)
+                {
+                    try
+                    {
+                        bool ok = legacy.SavePendingChanges();
+                        if (ok)
+                        {
+                            saved.Add((group.Key, "__legacy_all__"));
+                        }
+                        else
+                        {
+                            failed[(group.Key, "__legacy_all__")] = "저장할 변경사항이 없거나 저장되지 않았습니다.";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failed[(group.Key, "__legacy_all__")] = ex.Message;
+                    }
+                }
+            }
+
+            ApplySaveResultAndRefreshOverlay(saved, failed, isFullSave);
+        }
+
+        private void SaveAllPendingItems()
+        {
+            foreach (SaveSelectionItemViewModel item in _saveSelectionItems)
+            {
+                item.IsChecked = true;
+            }
+
+            SaveSelectedPendingItems(isFullSave: true);
+            bool keepOverlayOpen = _saveSelectionItems.Count > 0;
+            TrySaveFullArchive(keepOverlayOpen);
+        }
+
+        private void ApplySaveResultAndRefreshOverlay(
+            IReadOnlyCollection<(string ToolId, string ChangeId)> saved,
+            IReadOnlyDictionary<(string ToolId, string ChangeId), string> failed,
+            bool isFullSave = false)
+        {
+            int savedCount = 0;
+            int failedCount = 0;
+
+            foreach (var item in _saveSelectionItems)
+            {
+                item.ErrorMessage = null;
+            }
+
+            foreach (var key in failed.Keys)
+            {
+                SaveSelectionItemViewModel? target = _saveSelectionItems.FirstOrDefault(x =>
+                    string.Equals(x.ToolId, key.ToolId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(x.ChangeId, key.ChangeId, StringComparison.OrdinalIgnoreCase));
+                if (target != null)
+                {
+                    target.ErrorMessage = failed[key];
+                    target.IsChecked = false;
+                    failedCount++;
+                }
+            }
+
+            for (int i = _saveSelectionItems.Count - 1; i >= 0; i--)
+            {
+                SaveSelectionItemViewModel item = _saveSelectionItems[i];
+                bool isSaved = saved.Any(x =>
+                    string.Equals(x.ToolId, item.ToolId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(x.ChangeId, item.ChangeId, StringComparison.OrdinalIgnoreCase));
+                if (isSaved)
+                {
+                    _saveSelectionItems.RemoveAt(i);
+                    savedCount++;
+                }
+            }
+
+            if (_saveSelectionItems.Count == 0)
+            {
+                ShowSaveSelectionOverlay(false);
+                SaveOverlaySummaryText.Text = "변경된 항목이 없습니다.";
+                SaveOverlayStatusText.Text = savedCount > 0
+                    ? $"저장 완료: {savedCount}개"
+                    : "변경된 항목이 없습니다.";
+                return;
+            }
+
+            SaveOverlaySummaryText.Text = $"남은 변경 항목 {_saveSelectionItems.Count}개";
+            SaveOverlayStatusText.Text = failedCount > 0
+                ? $"저장 성공 {savedCount}개 / 실패 {failedCount}개 / 남은 항목 {_saveSelectionItems.Count}개"
+                : $"저장 성공 {savedCount}개 / 남은 항목 {_saveSelectionItems.Count}개";
+            SaveOverlaySaveSelectedButton.IsEnabled = _saveSelectionItems.Count > 0;
+            SaveOverlaySaveAllButton.IsEnabled = _saveSelectionItems.Count > 0;
+        }
+
+        private string ResolveFullSaveExportPath(YW2 yw2)
+        {
+            string baseDir = yw2.CurrentProject?.ExportsPath;
+            if (string.IsNullOrWhiteSpace(baseDir))
+            {
+                baseDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exports");
+            }
+
+            Directory.CreateDirectory(baseDir);
+            return System.IO.Path.Combine(baseDir, "yw2_a.fa");
+        }
+
+        private bool TrySaveFullArchive(bool keepOverlayOpen = false)
+        {
+            if (CurrentGame is not YW2 yw2)
+            {
+                SaveOverlayStatusText.Text = "전체 아카이브 저장은 YW2에서만 지원합니다.";
+                return false;
+            }
+
+            try
+            {
+                string exportPath = ResolveFullSaveExportPath(yw2);
+                yw2.SaveFullArchive(exportPath);
+
+                SaveOverlaySummaryText.Text = "저장 완료";
+                SaveOverlayStatusText.Text = $"저장 완료: {exportPath}";
+                if (!keepOverlayOpen)
+                {
+                    ShowSaveSelectionOverlay(false);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                SaveOverlayStatusText.Text = $"전체 아카이브 저장 실패: {ex.Message}";
+                return false;
+            }
+        }
+
+        private void PlaySaveButtonInPlacePulse(System.Windows.Controls.Button sourceButton)
+        {
+            try
+            {
+                if (TransitionProxy == null || ProxyIconContainer == null)
+                {
+                    return;
+                }
+
+                var root = VisualTreeHelper.GetParent(TransitionProxy) as UIElement;
+                if (root == null)
+                {
+                    return;
+                }
+
+                if (sourceButton.DataContext is ModdingToolViewModel toolVm)
+                {
+                    ProxyBag.Source = new BitmapImage(new Uri(toolVm.BagIconPath, UriKind.Absolute));
+                    ProxyIcon.Source = new BitmapImage(new Uri(toolVm.IconBPath, UriKind.Absolute));
+                    ProxyText.Text = toolVm.Title;
+                }
+
+                double proxySize = Math.Max(1.0, Math.Min(sourceButton.ActualWidth, sourceButton.ActualHeight));
+                ProxyIconContainer.Width = proxySize;
+                ProxyIconContainer.Height = proxySize;
+
+                var transform = sourceButton.TransformToVisual(root);
+                var topLeft = transform.Transform(new Point(
+                    (sourceButton.ActualWidth - proxySize) * 0.5,
+                    (sourceButton.ActualHeight - proxySize) * 0.5));
+
+                TransitionProxy.Margin = new Thickness(topLeft.X, topLeft.Y, 0, 0);
+                TransitionProxy.Visibility = Visibility.Visible;
+                TransitionProxy.Opacity = 1;
+                System.Windows.Controls.Panel.SetZIndex(TransitionProxy, AnimationConfig.ZIndex_MedalProxy);
+
+                var scale = new ScaleTransform(0.92, 0.92);
+                var translate = new TranslateTransform(0, 0);
+                var group = new TransformGroup();
+                group.Children.Add(scale);
+                group.Children.Add(translate);
+                TransitionProxy.RenderTransform = group;
+
+                var duration = TimeSpan.FromMilliseconds(290);
+                var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
+                var easeIn = new CubicEase { EasingMode = EasingMode.EaseIn };
+
+                var scaleX = new DoubleAnimationUsingKeyFrames();
+                scaleX.KeyFrames.Add(new SplineDoubleKeyFrame(0.92, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                scaleX.KeyFrames.Add(new SplineDoubleKeyFrame(1.08, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140))) { KeySpline = new KeySpline(0.25, 0.1, 0.25, 1.0) });
+                scaleX.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(duration)) { KeySpline = new KeySpline(0.4, 0, 1, 1) });
+
+                var scaleY = scaleX.Clone();
+                var fade = new DoubleAnimation(1.0, 0.0, duration) { EasingFunction = easeIn };
+
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleY);
+                TransitionProxy.BeginAnimation(UIElement.OpacityProperty, fade);
+
+                var hideTimer = new DispatcherTimer { Interval = duration };
+                hideTimer.Tick += (_, __) =>
+                {
+                    hideTimer.Stop();
+                    TransitionProxy.BeginAnimation(UIElement.OpacityProperty, null);
+                    TransitionProxy.Opacity = 0;
+                    TransitionProxy.Visibility = Visibility.Collapsed;
+                    System.Windows.Controls.Panel.SetZIndex(TransitionProxy, AnimationConfig.ZIndex_MedalProxyBelowHeader);
+                };
+                hideTimer.Start();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModWindow] Save pulse animation error: {ex.Message}");
             }
         }
 
@@ -1934,6 +4297,29 @@ namespace ICN_T2.UI.WPF
             }
         }
 
+        private string? ResolveVanillaSamplePath()
+        {
+            var candidates = new[]
+            {
+                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ICN_T2", "sample"),
+                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sample")
+            };
+
+            foreach (var dir in candidates)
+            {
+                if (!Directory.Exists(dir)) continue;
+
+                string a = System.IO.Path.Combine(dir, "yw2_a.fa");
+                string lg = System.IO.Path.Combine(dir, "yw2_lg_ko.fa");
+                if (File.Exists(a) && File.Exists(lg))
+                {
+                    return dir;
+                }
+            }
+
+            return null;
+        }
+
         private void BtnSaveProject_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -1950,8 +4336,13 @@ namespace ICN_T2.UI.WPF
 
                 if (RbVanilla.IsChecked == true)
                 {
-                    // 바닐라 선택 시 Samples 폴더 사용
-                    finalGamePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Samples");
+                    string? samplePath = ResolveVanillaSamplePath();
+                    if (samplePath == null)
+                    {
+                        System.Windows.MessageBox.Show("바닐라 샘플 파일(yw2_a.fa, yw2_lg_ko.fa)을 찾을 수 없습니다. 경로: ICN_T2/sample", "경고", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    finalGamePath = samplePath;
                 }
                 else
                 {
@@ -2046,6 +4437,261 @@ namespace ICN_T2.UI.WPF
                     System.Windows.MessageBox.Show($"삭제 오류: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        private void NavProject_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_suppressSidebarNavCheckedEvents) return;
+            if (!IsSenderSidebarNavInteractive(sender)) return;
+            ShowProjectSectionImmediate();
+        }
+
+        private void NavTool_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_suppressSidebarNavCheckedEvents) return;
+            if (!IsSenderSidebarNavInteractive(sender)) return;
+            ShowModdingSectionImmediate();
+        }
+
+        private void NavOption_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_suppressSidebarNavCheckedEvents) return;
+            if (!IsSenderSidebarNavInteractive(sender)) return;
+            ShowOptionSectionImmediate();
+        }
+
+        private static bool IsSenderSidebarNavInteractive(object sender)
+        {
+            if (sender is not FrameworkElement fe)
+            {
+                return true;
+            }
+
+            return fe.IsLoaded && fe.IsVisible && fe.IsHitTestVisible;
+        }
+
+        private void ResetNavigationStackForImmediateSection(NavState? secondaryState = null)
+        {
+            _navStack.Clear();
+            _navStack.Push(new NavItem { State = NavState.ProjectList, MethodName = "ImmediateReset" });
+
+            if (secondaryState.HasValue && secondaryState.Value != NavState.ProjectList)
+            {
+                _navStack.Push(new NavItem { State = secondaryState.Value, MethodName = "ImmediateReset" });
+            }
+        }
+
+        private void ShowProjectSectionImmediate()
+        {
+            if (NavProject != null && NavProject.IsChecked != true)
+            {
+                NavProject.IsChecked = true;
+            }
+
+            if (ProjectMenuContent == null ||
+                ProjectListView == null ||
+                CreateProjectForm == null ||
+                ModdingMenuContent == null ||
+                BookCover == null ||
+                ToolPlaceholderContent == null ||
+                OptionPlaceholderContent == null ||
+                ModdingDescriptionPanel == null ||
+                ModdingMenuButtons == null ||
+                ProjectMenuButtons == null ||
+                TxtMainHeader == null)
+            {
+                return;
+            }
+
+            ResetNavigationStackForImmediateSection();
+
+            ProjectMenuContent.Visibility = Visibility.Visible;
+            ProjectListView.Visibility = Visibility.Visible;
+            CreateProjectForm.Visibility = Visibility.Collapsed;
+
+            ModdingMenuContent.Visibility = Visibility.Collapsed;
+            BookCover.Visibility = Visibility.Collapsed;
+            ToolPlaceholderContent.Visibility = Visibility.Collapsed;
+            OptionPlaceholderContent.Visibility = Visibility.Collapsed;
+            ModdingDescriptionPanel.Visibility = Visibility.Collapsed;
+
+            ModdingMenuButtons.Visibility = Visibility.Collapsed;
+            ModdingMenuButtons.Opacity = 0;
+            ModdingMenuButtons.IsHitTestVisible = false;
+            ProjectMenuButtons.Visibility = Visibility.Visible;
+            ProjectMenuButtons.Opacity = 1;
+            ProjectMenuButtons.IsHitTestVisible = true;
+
+            var vm = DataContext as ModernModWindowViewModel;
+            if (vm != null)
+            {
+                vm.HeaderText = "메인메뉴";
+                TxtMainHeader.Text = NormalizeHeaderText(vm.HeaderText);
+            }
+        }
+
+        private void ShowModdingSectionImmediate()
+        {
+            if (NavTool != null && NavTool.IsChecked != true)
+            {
+                NavTool.IsChecked = true;
+            }
+
+            if (ProjectMenuContent == null ||
+                ToolPlaceholderContent == null ||
+                OptionPlaceholderContent == null ||
+                ModdingMenuContent == null ||
+                BookCover == null ||
+                ModdingMenuButtons == null ||
+                ProjectMenuButtons == null ||
+                TxtMainHeader == null)
+            {
+                return;
+            }
+
+            ResetNavigationStackForImmediateSection(NavState.ModdingMenu);
+
+            ProjectMenuContent.Visibility = Visibility.Collapsed;
+            ToolPlaceholderContent.Visibility = Visibility.Collapsed;
+            OptionPlaceholderContent.Visibility = Visibility.Collapsed;
+
+            ModdingMenuContent.Visibility = Visibility.Visible;
+            ModdingMenuContent.Opacity = 1;
+            BookCover.Visibility = Visibility.Visible;
+            BookCover.Opacity = 1;
+            ModdingMenuButtons.Visibility = Visibility.Visible;
+            ModdingMenuButtons.Opacity = 1;
+            ModdingMenuButtons.IsHitTestVisible = true;
+            ProjectMenuButtons.Visibility = Visibility.Collapsed;
+            ProjectMenuButtons.Opacity = 0;
+            ProjectMenuButtons.IsHitTestVisible = false;
+
+            var vm = DataContext as ModernModWindowViewModel;
+            if (vm != null)
+            {
+                vm.HeaderText = "모딩메뉴";
+                TxtMainHeader.Text = NormalizeHeaderText(vm.HeaderText);
+            }
+        }
+
+        private void ShowOptionSectionImmediate()
+        {
+            if (NavOption != null && NavOption.IsChecked != true)
+            {
+                NavOption.IsChecked = true;
+            }
+
+            if (ProjectMenuContent == null ||
+                ProjectListView == null ||
+                CreateProjectForm == null ||
+                ModdingMenuContent == null ||
+                BookCover == null ||
+                ToolPlaceholderContent == null ||
+                OptionPlaceholderContent == null ||
+                ModdingDescriptionPanel == null ||
+                ProjectMenuButtons == null ||
+                ModdingMenuButtons == null ||
+                TxtMainHeader == null)
+            {
+                return;
+            }
+
+            ProjectMenuContent.Visibility = Visibility.Visible;
+            ProjectListView.Visibility = Visibility.Collapsed;
+            CreateProjectForm.Visibility = Visibility.Collapsed;
+            ModdingMenuContent.Visibility = Visibility.Collapsed;
+            BookCover.Visibility = Visibility.Collapsed;
+            ToolPlaceholderContent.Visibility = Visibility.Collapsed;
+
+            OptionPlaceholderContent.Visibility = Visibility.Visible;
+            ModdingDescriptionPanel.Visibility = Visibility.Collapsed;
+            ProjectMenuButtons.Visibility = Visibility.Visible;
+            ProjectMenuButtons.Opacity = 1;
+            ProjectMenuButtons.IsHitTestVisible = true;
+            ModdingMenuButtons.Visibility = Visibility.Collapsed;
+            ModdingMenuButtons.Opacity = 0;
+            ModdingMenuButtons.IsHitTestVisible = false;
+
+            var vm = DataContext as ModernModWindowViewModel;
+            if (vm != null)
+            {
+                vm.HeaderText = "설정";
+                TxtMainHeader.Text = NormalizeHeaderText(vm.HeaderText);
+            }
+        }
+
+        private void ModdingMenuButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (e.OriginalSource is FrameworkElement fe && fe.DataContext is ModdingToolViewModel vm)
+            {
+                ModdingDescTitle.Text = vm.Title;
+                ModdingDescBody.Text = vm.Description ?? "";
+                ModdingDescriptionPanel.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void NavMainTool_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_suppressSidebarNavCheckedEvents) return;
+            if (!IsSenderSidebarNavInteractive(sender)) return;
+            ShowToolSectionImmediate();
+        }
+
+        private void ShowToolSectionImmediate()
+        {
+            // Ensure this radio button is visually checked
+            // (Only needed if called programmatically, but good practice)
+            // We don't have a direct reference to the sidebar 'Tools' radio button name in XAML currently,
+            // so we rely on the sender or binding, but for now just updating UI state is enough.
+
+            if (ProjectMenuContent == null ||
+                ProjectListView == null ||
+                CreateProjectForm == null ||
+                ModdingMenuContent == null ||
+                BookCover == null ||
+                ToolPlaceholderContent == null ||
+                OptionPlaceholderContent == null ||
+                ModdingDescriptionPanel == null ||
+                ProjectMenuButtons == null ||
+                ModdingMenuButtons == null ||
+                TxtMainHeader == null)
+            {
+                return;
+            }
+
+            // Hide other sections
+            ProjectMenuContent.Visibility = Visibility.Visible;
+            ProjectListView.Visibility = Visibility.Collapsed;
+            CreateProjectForm.Visibility = Visibility.Collapsed;
+            ModdingMenuContent.Visibility = Visibility.Collapsed;
+            BookCover.Visibility = Visibility.Collapsed;
+            OptionPlaceholderContent.Visibility = Visibility.Collapsed;
+            ModdingDescriptionPanel.Visibility = Visibility.Collapsed;
+
+            // Show Tool Placeholder
+            ToolPlaceholderContent.Visibility = Visibility.Visible;
+
+            // Ensure Main Menu Sidebar is visible (since we are in Main Menu > Tools)
+            ProjectMenuButtons.Visibility = Visibility.Visible;
+            ProjectMenuButtons.Opacity = 1;
+            ProjectMenuButtons.IsHitTestVisible = true;
+
+            // Hide Modding Sidebar
+            ModdingMenuButtons.Visibility = Visibility.Collapsed;
+            ModdingMenuButtons.Opacity = 0;
+            ModdingMenuButtons.IsHitTestVisible = false;
+
+            var vm = DataContext as ModernModWindowViewModel;
+            if (vm != null)
+            {
+                vm.HeaderText = "도구";
+                TxtMainHeader.Text = NormalizeHeaderText(vm.HeaderText);
+            }
+        }
+
+        private void ModdingMenuButton_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            ModdingDescriptionPanel.Visibility = Visibility.Collapsed;
         }
 
         #endregion
@@ -2221,6 +4867,7 @@ namespace ICN_T2.UI.WPF
             }
             // Fade in header along with main content (Rx 기반)
             await UIAnimationsRx.Fade(TxtMainHeader, 0, 1, 1200);
+            await AnimateGlobalTitleBarAsync(true);
 
             System.Diagnostics.Debug.WriteLine("[ModWindow] TitleOverlay_Click 완료 (한글)");
         }
@@ -2230,7 +4877,63 @@ namespace ICN_T2.UI.WPF
             if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
                 this.DragMove();
         }
-        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+
+            // Shader Animation Cleanup
+            if (LeftSidebarBorder != null)
+            {
+                LeftSidebarBorder.SizeChanged -= LeftSidebarBorder_SizeChanged;
+            }
+            this.MouseMove -= Window_MouseMove_ShaderUpdate;
+            System.Windows.Media.CompositionTarget.Rendering -= UpdateShaderAnimation;
+            foreach (var pair in _buttonRefractionEffects)
+            {
+                if (ReferenceEquals(pair.Key.Effect, pair.Value))
+                {
+                    pair.Key.Effect = null;
+                }
+            }
+            _buttonRefractionEffects.Clear();
+            DetachModdingMedalRefractionEffects();
+            DetachBookRefractionEffect();
+
+            foreach (var pair in _toolPanelRefractionEffects)
+            {
+                if (ReferenceEquals(pair.Key.Effect, pair.Value))
+                {
+                    pair.Key.Effect = null;
+                }
+            }
+            _toolPanelRefractionEffects.Clear();
+
+            foreach (var pair in _toolInteractiveRefractionEffects)
+            {
+                if (ReferenceEquals(pair.Key.Effect, pair.Value))
+                {
+                    pair.Key.Effect = null;
+                }
+            }
+            _toolInteractiveRefractionEffects.Clear();
+
+            if (MainContentRefractionLayer != null &&
+                _fixedBackdropRefractionEffect != null &&
+                ReferenceEquals(MainContentRefractionLayer.Effect, _fixedBackdropRefractionEffect))
+            {
+                MainContentRefractionLayer.Effect = null;
+            }
+            _fixedBackdropRefractionEffect = null;
+            _sidebarRefractionEffect = null;
+            _bookRefractionEffect = null;
+            _toolPanelBackdropBrush = null;
+            _glassNormalMapBrush = null;
+
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] Closed - Resources Released");
+        }
+
+        public static IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
         {
             if (depObj != null)
             {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,15 +29,14 @@ public class XPCK
     public XPCK(byte[] data)
     {
         Directory = new VirtualDirectory("/");
-        using (MemoryStream ms = new MemoryStream(data))
-        {
-            Open(ms);
-        }
+        MemoryStream ms = new MemoryStream(data);
+        Open(ms);
     }
 
     private void Open(Stream stream)
     {
-        using (BinaryDataReader reader = new BinaryDataReader(stream))
+        BinaryDataReader reader = new BinaryDataReader(stream);
+        try
         {
             // 1. 헤더 읽기
             var header = reader.ReadStruct<XPCKSupport.Header>();
@@ -60,6 +59,8 @@ public class XPCK
             byte[] nameTable = Compressor.Decompress(compressedNames);
 
             // 4. 파일 생성
+            // nameReader는 별도의 MemoryStream을 사용하므로 using을 사용해도 무방하지만,
+            // 안전을 위해 여기서는 using을 사용합니다 (내부 배열이므로)
             using (BinaryDataReader nameReader = new BinaryDataReader(nameTable))
             {
                 Encoding sjis = Encoding.GetEncoding("Shift-JIS");
@@ -73,19 +74,41 @@ public class XPCK
                     int fileSize = entry.GetFileSize();
 
                     // SubMemoryStream으로 데이터 매핑
+                    // 주의: stream이 닫히면 안 됨
                     Directory.AddFile(fileName, new SubMemoryStream(stream, fileOffset, fileSize));
                 }
             }
+        }
+        finally
+        {
+            // BinaryDataReader를 Dispose하면 내부 Stream도 Dispose되므로 호출하지 않음
+            // reader = null; 
         }
 
         // 보기 좋게 정렬
         Directory.SortAlphabetically();
     }
 
+    public byte[] Save()
+    {
+        using (MemoryStream ms = new MemoryStream())
+        {
+            Save(ms);
+            return ms.ToArray();
+        }
+    }
+
     public void Save(string outputParam)
     {
         using (FileStream fs = new FileStream(outputParam, FileMode.Create, FileAccess.Write))
-        using (BinaryDataWriter writer = new BinaryDataWriter(fs))
+        {
+            Save(fs);
+        }
+    }
+
+    public void Save(Stream stream)
+    {
+        using (BinaryDataWriter writer = new BinaryDataWriter(stream))
         {
             Encoding sjis = Encoding.GetEncoding("Shift-JIS");
 
@@ -163,7 +186,7 @@ public class XPCK
                 long relativeOffset = writer.Position - dataStart;
 
                 // 데이터 쓰기
-                file.Data.CopyTo(fs);
+                file.Data.CopyTo(stream); // Use stream directly or writer.BaseStream if compatible
 
                 // 정렬 (각 파일 끝난 후 4바이트 or 16바이트? 보통 XPCK 파일 간 정렬은 16바이트)
                 writer.WriteAlignment(16);

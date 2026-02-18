@@ -448,13 +448,12 @@ namespace ICN_T2.Forms.Controls
             // CellW: 75 (Unchanged)
             // GapY: 30 -> 25 (Reduce 5px)
 
-            float gridStartX = 45.2f; // [Phase 32] Shifted Right +0.2px (45 -> 45.2)
+            float gridStartX = 33.8f; // Rebalanced after size restore so 4-column grid stays inside 421px panel
             int gridStartY = 8;  // [Phase 31] Shifted Down +2px (6 -> 8)
-                                 // [Phase 29] Reduced by 10% from previous size
-                                 // Previous 136x101 -> New 122x91
+                                 // Previous reduction made menu icons look too small in the modding menu.
 
-            int cellW = 122;
-            int cellH = 91;
+            int cellW = 128;
+            int cellH = 96;
 
             float gapX = -41.8f; // [Phase 31] Gap X Reduced 0.3px (-41.5 -> -41.8)
             float gapY = -13.8f; // 77.2 - 91 = -13.8

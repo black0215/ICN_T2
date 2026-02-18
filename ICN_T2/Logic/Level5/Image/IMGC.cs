@@ -225,24 +225,21 @@ namespace ICN_T2.Logic.Level5.Image
                         pic = Compression.Algorithms.ETC1Decoder.DecompressETC1A4(assembled, width, height);
                         System.Diagnostics.Debug.WriteLine($"[IMGC.Decode] ETC1A4 decoded: {pic?.Length ?? 0}B");
                         break;
+                    case "ETC1":
+                        pic = Compression.Algorithms.ETC1Decoder.DecompressETC1(assembled, width, height);
+                        System.Diagnostics.Debug.WriteLine($"[IMGC.Decode] ETC1 decoded: {pic?.Length ?? 0}B");
+                        break;
                     default:
                         pic = assembled;
                         break;
                 }
 
+                // [RESTORED] Albatross original logic — IMGCSwizzle already aligns internally
                 IMGCSwizzle imgcSwizzle = new IMGCSwizzle(width, height);
                 var points = imgcSwizzle.GetPointSequence();
 
                 int pixelCount = width * height;
                 Color[] resultArray = new Color[pixelCount];
-
-                // Validate that pic has enough data for all pixels
-                int requiredSize = pixelCount * imgFormat.Size;
-                if (pic.Length < requiredSize)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[IMGC] Image data too small: {pic.Length} < {requiredSize} (expected {pixelCount} pixels * {imgFormat.Size} bytes)");
-                    return null;
-                }
 
                 for (int i = 0; i < pixelCount; i++)
                 {
@@ -261,10 +258,14 @@ namespace ICN_T2.Logic.Level5.Image
                     if (pointIndex >= resultArray.Length) break;
 
                     int x = pair.X, y = pair.Y;
+
+                    // Only draw pixels within the actual image bounds
                     if (0 <= x && x < width && 0 <= y && y < height)
                     {
                         var color = resultArray[pointIndex];
                         int pixelOffset = data.Stride * y / 4 + x;
+
+                        // Safe pointer write
                         int pixelValue = color.ToArgb();
                         Marshal.WriteInt32(data.Scan0 + pixelOffset * 4, pixelValue);
                     }

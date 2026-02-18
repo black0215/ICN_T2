@@ -19,6 +19,7 @@ namespace ICN_T2.UI.WPF.Views
         public CharacterScaleView()
         {
             InitializeComponent();
+            DataContext = null;
             DataContextChanged += OnDataContextChanged;
         }
 
@@ -30,6 +31,11 @@ namespace ICN_T2.UI.WPF.Views
 
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+            }
+
             if (e.NewValue is CharacterScaleViewModel vm)
             {
                 _viewModel = vm;
@@ -37,7 +43,10 @@ namespace ICN_T2.UI.WPF.Views
                 
                 // Initial load
                 LoadCharacterIcon();
+                return;
             }
+
+            _viewModel = null;
         }
 
         private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

@@ -19,6 +19,7 @@ namespace ICN_T2.UI.WPF.Views
         public YokaiStatsView()
         {
             InitializeComponent();
+            DataContext = null;
             DataContextChanged += OnDataContextChanged;
         }
 
@@ -29,6 +30,11 @@ namespace ICN_T2.UI.WPF.Views
 
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
+            if (e.OldValue is YokaiStatsViewModel oldVm)
+            {
+                oldVm.PropertyChanged -= ViewModel_PropertyChanged;
+            }
+
             if (e.NewValue is YokaiStatsViewModel vm)
             {
                 _viewModel = vm;
@@ -36,6 +42,11 @@ namespace ICN_T2.UI.WPF.Views
                 
                 // Initial load
                 LoadCharacterIcon();
+                SetVisibleTab("Stats");
+            }
+            else
+            {
+                _viewModel = null;
             }
         }
 
@@ -51,6 +62,23 @@ namespace ICN_T2.UI.WPF.Views
         {
             // Placeholder for now
             // Same logic as CharacterScaleView can be implemented here if needed
+        }
+
+        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.RadioButton rb && rb.Tag is string tag)
+            {
+                SetVisibleTab(tag);
+            }
+        }
+
+        private void SetVisibleTab(string tag)
+        {
+            if (StatsCard == null || TechCard == null || QuoteCard == null) return;
+
+            StatsCard.Visibility = tag == "Stats" ? Visibility.Visible : Visibility.Collapsed;
+            TechCard.Visibility = tag == "Tech" ? Visibility.Visible : Visibility.Collapsed;
+            QuoteCard.Visibility = tag == "Quotes" ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 }

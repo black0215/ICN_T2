@@ -8,9 +8,11 @@
         public int[] Charas { get; set; }
     }
 
-    public class IEncountChara
+    public interface IEncountChara
     {
-        public int ParamHash { get; set; }
-        public int Level { get; set; }
+        int ParamHash { get; set; }
+        int Level { get; set; }
+        int MaxLevel { get; set; }
+        int Weight { get; set; }
     }
 }

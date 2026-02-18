@@ -34,6 +34,7 @@ namespace ICN_T2.Logic.Level5.Image
         {
             {0, new RGBA8() },
             {1, new RGBA4() },
+            {27, new ETC1() },
             {28, new ETC1A4() },
         };
     }

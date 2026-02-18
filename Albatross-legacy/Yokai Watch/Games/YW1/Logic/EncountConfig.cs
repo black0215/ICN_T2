@@ -21,12 +21,16 @@ namespace Albatross.Yokai_Watch.Games.YW1.Logic
 
     public class EncountChara : IEncountChara
     {
-        public new int ParamHash { get => base.ParamHash; set => base.ParamHash = value; }
-        public new int Level { get => base.Level; set => base.Level = value; }
+        public int ParamHash { get; set; }
+        public int Level { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
         public int Unk3 { get; set; }
         public int Unk4 { get; set; }
         public int Unk5 { get; set; }
+
+        // Keep serialized layout unchanged while satisfying interface contract.
+        int IEncountChara.MaxLevel { get => Unk1; set => Unk1 = value; }
+        int IEncountChara.Weight { get => Unk2; set => Unk2 = value; }
     }
 }

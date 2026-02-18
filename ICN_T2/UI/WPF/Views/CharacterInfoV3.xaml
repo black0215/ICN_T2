@@ -3,8 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:behaviors="clr-namespace:ICN_T2.UI.WPF.Behaviors"
              mc:Ignorable="d"
-             d:DesignHeight="600" d:DesignWidth="1000"
+             d:DesignHeight="650" d:DesignWidth="1100"
+             ClipToBounds="False"
              Background="Transparent"
              TextElement.Foreground="#1F1F1F">
 
@@ -17,29 +19,20 @@
             <!-- BoolToVisibilityConverter -->
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
-            <!-- Custom ScrollBar Style -->
+            <!-- Custom ScrollBar Style (Minimalist) -->
             <Style TargetType="{x:Type ScrollBar}">
                 <Setter Property="Stylus.IsFlicksEnabled" Value="false" />
                 <Setter Property="Foreground" Value="#808080" />
                 <Setter Property="Background" Value="Transparent" />
-                <Setter Property="Width" Value="8" />
+                <Setter Property="Width" Value="6" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="{x:Type ScrollBar}">
-                            <Grid x:Name="GridRoot" Width="8" Background="{TemplateBinding Background}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="0.00001*" />
-                                </Grid.RowDefinitions>
-                                <Track x:Name="PART_Track" Grid.Row="0" IsDirectionReversed="true" Focusable="false">
+                            <Grid x:Name="GridRoot" Width="6" Background="{TemplateBinding Background}">
+                                <Track x:Name="PART_Track" IsDirectionReversed="true" Focusable="false">
                                     <Track.Thumb>
                                         <Thumb x:Name="Thumb" Background="{TemplateBinding Foreground}" Style="{DynamicResource ScrollBarThumb}" />
                                     </Track.Thumb>
-                                    <Track.IncreaseRepeatButton>
-                                        <RepeatButton x:Name="PageUp" Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="false" />
-                                    </Track.IncreaseRepeatButton>
-                                    <Track.DecreaseRepeatButton>
-                                        <RepeatButton x:Name="PageDown" Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="false" />
-                                    </Track.DecreaseRepeatButton>
                                 </Track>
                             </Grid>
                         </ControlTemplate>
@@ -47,25 +40,10 @@
                 </Setter>
                 <Style.Resources>
                     <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
-                        <Setter Property="OverridesDefaultStyle" Value="true"/>
-                        <Setter Property="IsTabStop" Value="false"/>
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="{x:Type Thumb}">
-                                    <Border x:Name="rectangle"
-                                            Background="#808080"
-                                            CornerRadius="4"
-                                            Height="{TemplateBinding Height}"
-                                            SnapsToDevicePixels="True"
-                                            Width="{TemplateBinding Width}"/>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="true">
-                                            <Setter TargetName="rectangle" Property="Background" Value="#A0808080" />
-                                        </Trigger>
-                                        <Trigger Property="IsDragging" Value="true">
-                                            <Setter TargetName="rectangle" Property="Background" Value="#C0808080" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
+                                    <Border Background="#40000000" CornerRadius="3"/>
                                 </ControlTemplate>
                             </Setter.Value>
                         </Setter>
@@ -75,592 +53,703 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid x:Name="RootGrid">
+    <Grid x:Name="RootGrid"
+          SnapsToDevicePixels="True"
+          UseLayoutRounding="True"
+          ClipToBounds="False"
+          TextOptions.TextFormattingMode="Display"
+          TextOptions.TextRenderingMode="ClearType"
+          TextOptions.TextHintingMode="Fixed">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/> <!-- Panel 0: Search List (300/500) -->
-            <ColumnDefinition Width="12"/> <!-- Compact Spacing -->
-            <ColumnDefinition Width="*"/> <!-- Right Area -->
+            <ColumnDefinition x:Name="ColList" Width="30*"/> <!-- Panel 0: Search List (Proportional) -->
+            <ColumnDefinition Width="24"/>  <!-- Spacing -->
+            <ColumnDefinition x:Name="ColDetail" Width="70*"/>   <!-- Right Area (Proportional) -->
         </Grid.ColumnDefinitions>
 
-        <!-- Panel 0: 검색 리스트 (높이 중간, 꺾임 X좌표 400 이내) -->
-        <Border x:Name="PART_SearchPanel" Grid.Column="0" Width="300" MaxWidth="400"
-                MaxHeight="320"
-                Background="#B0FFFFFF"
-                BorderBrush="#20000000"
-                BorderThickness="1"
-                CornerRadius="12"
-                Padding="10"
-                MouseEnter="SearchPanel_MouseEnter"
-                MouseLeave="SearchPanel_MouseLeave">
-            <Border.Effect>
-                <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="10" ShadowDepth="3"/>
-            </Border.Effect>
-
-            <Grid>
+        <!-- ??????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???-->
+        <!-- Panel 0: Search Panel (Left) - iOS 26 Control Center Style -->
+        <!-- ??????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???-->
+        <Grid x:Name="CharacterListHost" Grid.Column="0" Margin="0,90,0,0">
+            <Border x:Name="CharacterListBackdropBorder" CornerRadius="24"
+                    Tag="ToolPanelBackdropGlass"
+                    IsHitTestVisible="False"/>
+            <Border x:Name="PART_SearchPanel"
+                    VerticalAlignment="Stretch"
+                    Background="#33FFFFFF"
+                    BorderBrush="#22FFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="24"
+                    Padding="16">
+                <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- 헤더 + 필터 버튼 -->
-                    <RowDefinition Height="Auto"/> <!-- 검색 박스 -->
-                    <RowDefinition Height="*" MaxHeight="260"/> <!-- 리스트 -->
+                    <RowDefinition Height="Auto"/> <!-- Header -->
+                    <RowDefinition Height="Auto"/> <!-- Search Box -->
+                    <RowDefinition Height="*"/>    <!-- List -->
                 </Grid.RowDefinitions>
 
-                <!-- 헤더 + 필터 토글 버튼 -->
-                <Grid Grid.Row="0" Margin="0,0,0,12">
-                    <TextBlock Text="캐릭터 기본정보"
-                               FontSize="16"
-                               FontFamily="G마켓 산스 TTF Bold, Malgun Gothic"
+                <!-- Header + Filter Toggle -->
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <TextBlock Text="캐릭터 리스트"
+                               FontSize="20"
+                               FontFamily="G마켓 산스 TTF Bold , Malgun Gothic"
                                FontWeight="Bold"
-                               VerticalAlignment="Center"/>
+                               VerticalAlignment="Center"
+                               Foreground="#1F1F1F"/>
+                    
                     <Button x:Name="BtnToggleFilter"
                             Content="필터"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
-                            FontSize="11"
+                            FontSize="12"
                             FontWeight="SemiBold"
-                            Padding="10,4"
-                            Background="#30FFFFFF"
-                            BorderBrush="#50FFFFFF"
+                            Padding="12,6"
+                            Background="#40FFFFFF"
+                            BorderBrush="#20000000"
                             BorderThickness="1"
                             Cursor="Hand"
                             Click="BtnToggleFilter_Click">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}"
-                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                        CornerRadius="8"
-                                        Padding="{TemplateBinding Padding}">
-                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
+                                <Grid>
+                                    <Border Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="12"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </Grid>
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
                 </Grid>
 
-                <!-- 검색 박스 -->
+                <!-- Search Box -->
                 <Border Grid.Row="1"
-                        Margin="0,0,0,10"
-                        Background="#60FFFFFF"
-                        BorderBrush="#20000000"
-                        BorderThickness="1"
-                        CornerRadius="8">
+                        Margin="0,0,0,16"
+                        Height="44"
+                        Style="{StaticResource IosSearchFieldStyle}">
                     <Grid>
                         <TextBlock Text="검색..."
-                                   FontSize="12"
-                                   Foreground="#801F1F1F"
-                                   Margin="10,6"
-                                   IsHitTestVisible="False"
-                                   Visibility="{Binding ElementName=TxtSearch, Path=Text.Length, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                   FontSize="14"
+                                   Foreground="#601F1F1F"
+                                   Margin="14,0"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=TxtSearch}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                         <TextBox x:Name="TxtSearch"
-                                 Padding="10,6"
+                                 Padding="14,0"
                                  Background="Transparent"
                                  BorderThickness="0"
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="12"
-                                 VerticalContentAlignment="Center"/>
+                                 FontSize="14"
+                                 VerticalContentAlignment="Center"
+                                 Foreground="#1F1F1F"/>
                     </Grid>
                 </Border>
 
-                <!-- 캐릭터 리스트 -->
+                <!-- Character List -->
                 <ListBox x:Name="LstCharacters"
                          Grid.Row="2"
                          Background="Transparent"
                          BorderThickness="0"
                          ItemsSource="{Binding FilteredList}"
                          SelectedItem="{Binding SelectedCharacter, Mode=TwoWay}"
-                         VirtualizingStackPanel.IsVirtualizing="True"
-                         VirtualizingStackPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Pixel"
+                         ScrollViewer.CanContentScroll="False"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                          PreviewMouseLeftButtonDown="ListBoxItem_PreviewMouseLeftButtonDown">
                     <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Background" Value="Transparent"/>
-                            <Setter Property="Margin" Value="0,2"/>
-                            <Setter Property="Padding" Value="8"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="border" 
-                                                Background="{TemplateBinding Background}"
-                                                BorderBrush="Transparent"
-                                                BorderThickness="1"
-                                                CornerRadius="4"
-                                                Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#40FFFFFF"/>
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#80FFFFFF"/> <!-- Windows 11 Selection Style -->
-                                                <Setter TargetName="border" Property="BorderBrush" Value="#60000000"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource IosListItemStyle}">
+                            <Setter Property="Foreground" Value="#1F1F1F"/>
                         </Style>
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-
-                                <TextBlock Grid.Column="0"
-                                           Text="{Binding Name, Mode=OneWay}"
-                                           FontSize="12"
-                                           FontFamily="G마켓 산스 TTF Bold, Malgun Gothic"
-                                           FontWeight="SemiBold"
-                                           TextTrimming="CharacterEllipsis"
-                                           VerticalAlignment="Center"/>
-
-                                <!-- Rank/Tribe 아이콘 -->
-                                <StackPanel Grid.Column="1"
-                                            Orientation="Horizontal"
-                                            Margin="6,0,0,0">
-                                    <Image Source="{Binding RankIcon, Mode=OneWay}"
-                                           Width="18" Height="18"
-                                           Stretch="Uniform"
-                                           Margin="0,0,4,0"
-                                           VerticalAlignment="Center"
-                                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    <Image Source="{Binding TribeIcon, Mode=OneWay}"
-                                           Width="18" Height="18"
-                                           Stretch="Uniform"
-                                           VerticalAlignment="Center"
-                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                
+                                <!-- Icon -->
+                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" ClipToBounds="True" Background="#20000000" Margin="0,0,12,0">
+                                    <Image Source="{Binding Icon}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                                </Border>
+                                
+                                <!-- Info -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                                    <StackPanel Orientation="Horizontal" Opacity="0.6" Margin="0,2,0,0">
+                                        <Image Source="{Binding RankIcon}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                                        <Image Source="{Binding TribeIcon}" Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                                        <TextBlock Text="{Binding Model.BaseHash, StringFormat='ID: {0:X8}'}" FontSize="11" FontFamily="Consolas" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
-            </Grid>
-        </Border>
-
-        <!-- ═══════════════════════════════════════════════════════════════ -->
-        <!-- 필터 슬라이드 패널 (오버레이, 오른쪽→왼쪽 슬라이드) -->
-        <!-- ═══════════════════════════════════════════════════════════════ -->
-        <Border x:Name="FilterPanel"
-                Grid.Column="2"
-                Width="280"
-                HorizontalAlignment="Right"
-                Background="#D0FFFFFF"
-                BorderBrush="#20000000"
-                BorderThickness="1,0,0,0"
-                CornerRadius="15,0,0,15"
-                Padding="15"
-                Panel.ZIndex="100"
-                Visibility="Collapsed"
-                ClipToBounds="True">
-            <Border.Effect>
-                <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="20" ShadowDepth="5" Direction="180"/>
-            </Border.Effect>
-            <Border.RenderTransform>
-                <TranslateTransform x:Name="FilterPanelTranslate" X="300"/>
-            </Border.RenderTransform>
-
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel>
-                    <!-- 필터 헤더 -->
-                    <Grid Margin="0,0,0,15">
-                        <TextBlock Text="고급 필터"
-                                   FontSize="15"
-                                   FontFamily="G마켓 산스 TTF Bold, Malgun Gothic"
-                                   FontWeight="Bold"
-                                   Foreground="#1F1F1F"
-                                   VerticalAlignment="Center"/>
-                        <Button x:Name="BtnCloseFilter"
-                                Content="✕"
-                                HorizontalAlignment="Right"
-                                FontSize="14"
-                                Foreground="#1F1F1F"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Cursor="Hand"
-                                Padding="6,2"
-                                Click="BtnCloseFilter_Click">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                    </Grid>
-
-                    <!-- 카테고리 체크박스 -->
-                    <TextBlock Text="카테고리" FontSize="11" FontWeight="Bold" Foreground="#801F1F1F" Margin="0,0,0,6"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                        <CheckBox Content="요괴"
-                                  IsChecked="{Binding FilterShowYokai, Mode=TwoWay}"
-                                  Foreground="#1F1F1F" FontSize="12" Margin="0,0,15,0"
-                                  VerticalContentAlignment="Center"/>
-                        <CheckBox Content="NPC"
-                                  IsChecked="{Binding FilterShowNPC, Mode=TwoWay}"
-                                  Foreground="#1F1F1F" FontSize="12"
-                                  VerticalContentAlignment="Center"/>
-                    </StackPanel>
-
-                    <!-- 정렬 -->
-                    <TextBlock Text="정렬" FontSize="11" FontWeight="Bold" Foreground="#801F1F1F" Margin="0,0,0,6"/>
-                    <ComboBox ItemsSource="{Binding SortOptionList}"
-                              SelectedItem="{Binding SelectedSortOption, Mode=TwoWay}"
-                              DisplayMemberPath="DisplayName"
-                              FontSize="12"
-                              Margin="0,0,0,12"
-                              Padding="8,5"/>
-
-                    <!-- Rank 필터 -->
-                    <TextBlock Text="Rank" FontSize="11" FontWeight="Bold" Foreground="#801F1F1F" Margin="0,0,0,6"/>
-                    <ComboBox ItemsSource="{Binding RankFilterList}"
-                              SelectedItem="{Binding SelectedRankFilter, Mode=TwoWay}"
-                              FontSize="12"
-                              Margin="0,0,0,12"
-                              Padding="8,5">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <Image Source="{Binding Icon}" Width="16" Height="16"
-                                           Margin="0,0,6,0" VerticalAlignment="Center"
-                                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <!-- Tribe 필터 -->
-                    <TextBlock Text="Tribe" FontSize="11" FontWeight="Bold" Foreground="#801F1F1F" Margin="0,0,0,6"/>
-                    <ComboBox ItemsSource="{Binding TribeFilterList}"
-                              SelectedItem="{Binding SelectedTribeFilter, Mode=TwoWay}"
-                              FontSize="12"
-                              Margin="0,0,0,12"
-                              Padding="8,5">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <Image Source="{Binding Icon}" Width="16" Height="16"
-                                           Margin="0,0,6,0" VerticalAlignment="Center"
-                                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <!-- 좋아하는 음식 필터 -->
-                    <TextBlock Text="좋아하는 음식" FontSize="11" FontWeight="Bold" Foreground="#801F1F1F" Margin="0,0,0,6"/>
-                    <ComboBox ItemsSource="{Binding FoodFilterList}"
-                              SelectedItem="{Binding SelectedFavoriteFoodFilter, Mode=TwoWay}"
-                              FontSize="12"
-                              Margin="0,0,0,12"
-                              Padding="8,5">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <Image Source="{Binding Icon}" Width="16" Height="16"
-                                           Margin="0,0,6,0" VerticalAlignment="Center"
-                                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <!-- 싫어하는 음식 필터 -->
-                    <TextBlock Text="싫어하는 음식" FontSize="11" FontWeight="Bold" Foreground="#801F1F1F" Margin="0,0,0,6"/>
-                    <ComboBox ItemsSource="{Binding FoodFilterList}"
-                              SelectedItem="{Binding SelectedHatedFoodFilter, Mode=TwoWay}"
-                              FontSize="12"
-                              Margin="0,0,0,12"
-                              Padding="8,5">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <Image Source="{Binding Icon}" Width="16" Height="16"
-                                           Margin="0,0,6,0" VerticalAlignment="Center"
-                                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <!-- 해시 검색 -->
-                    <TextBlock Text="해시 검색" FontSize="11" FontWeight="Bold" Foreground="#801F1F1F" Margin="0,0,0,6"/>
-                    <Border Background="#20000000" CornerRadius="8" Margin="0,0,0,12">
-                        <TextBox Text="{Binding FilterHash, UpdateSourceTrigger=PropertyChanged}"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 Foreground="#1F1F1F"
-                                 FontSize="12"
-                                 FontFamily="Consolas"
-                                 Padding="8,5"/>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
-
-        <!-- Right Area (꺾인 곳 밑 10px부터 배치) -->
-        <Grid Grid.Column="2" Margin="0,0,0,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- 1번(아이콘) + 2번(해산) 가로 배치 -->
-                <RowDefinition Height="0"/> <!-- Spacing -->
-                <RowDefinition Height="Auto"/> <!-- 3번 -->
-                <RowDefinition Height="4"/> <!-- Spacing -->
-                <RowDefinition Height="Auto"/> <!-- 4번 -->
-                <RowDefinition Height="4"/> <!-- Spacing -->
-                <RowDefinition Height="*"/> <!-- 5번 -->
-            </Grid.RowDefinitions>
-            <!-- Row 0: Panel 1 (Icon) + Panel 2 (Hash) -->
-            <Grid Grid.Row="0" Margin="0,0,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="6"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Panel 1: Icon + Selectors (Integrated) -->
-                <StackPanel Grid.Column="0" VerticalAlignment="Top">
-                    <!-- Integrated Container Width 100 -->
-                    <Border Width="100"
-                            Background="#B0FFFFFF" BorderBrush="#20000000" BorderThickness="1"
-                            CornerRadius="12" Padding="0" Margin="0,-90,0,8">
-                         <StackPanel>
-                             <!-- 1. Icon (100x100) -->
-                             <Image x:Name="ImgCharacterIcon" Width="98" Height="98" Margin="0,1,0,0"
-                                    Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
-                             
-                             <!-- 2. Integrated Selectors (Width 100) -->
-                             <UniformGrid Columns="2" Height="30" Margin="0,0,0,0">
-                                 <!-- Tribe -->
-                                 <Button Command="{Binding ToggleTribeSelectorCommand}" 
-                                         Style="{StaticResource PuniIconButtonStyle}" 
-                                         Padding="4" Margin="0" BorderThickness="0,1,1,0" BorderBrush="#20000000"
-                                         ToolTip="Change Tribe">
-                                      <Image Source="{Binding SelectedCharacter.TribeIcon}" Stretch="Uniform"/>
-                                 </Button>
-                                 <!-- Rank -->
-                                 <Button Command="{Binding ToggleRankSelectorCommand}" 
-                                         Style="{StaticResource PuniIconButtonStyle}" 
-                                         Padding="4" Margin="0" BorderThickness="0,1,0,0" BorderBrush="#20000000"
-                                         ToolTip="Change Rank">
-                                      <Image Source="{Binding SelectedCharacter.RankIcon}" Stretch="Uniform"/>
-                                 </Button>
-                             </UniformGrid>
-                         </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <!-- Panel 2: Hash Values -->
-                <Border Grid.Column="2"
-                        Background="#B0FFFFFF"
-                        BorderBrush="#20000000"
-                        BorderThickness="1"
-                        CornerRadius="12"
-                        Padding="12"
-                        Margin="0,-90,0,0">
-                    <Border.Effect>
-                        <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="10" ShadowDepth="3"/>
-                    </Border.Effect>
-                    <StackPanel>
-                    <StackPanel>
-                        <!-- (Removed "2번" label as requested) -->
-                        <TextBlock Text="해쉬"
-                                   FontSize="14"
-                                   FontFamily="G마켓 산스 TTF Bold, Malgun Gothic"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,6"/>
-                        <TextBlock FontSize="10" FontFamily="Consolas" Opacity="0.9" Foreground="#1F1F1F">
-                            <Run Text="Model Hash: " Foreground="#801F1F1F"/>
-                            <Run Text="{Binding BaseHashDisplay, Mode=OneWay}"/>
-                        </TextBlock>
-                        <TextBlock FontSize="10" FontFamily="Consolas" Opacity="0.7" Margin="0,4,0,0" Foreground="#1F1F1F">
-                            <Run Text="Name Hash:  " Foreground="#801F1F1F"/>
-                            <Run Text="{Binding NameHashDisplay, Mode=OneWay}"/>
-                        </TextBlock>
-                        <TextBlock FontSize="10" FontFamily="Consolas" Opacity="0.7" Margin="0,2,0,0" Foreground="#1F1F1F">
-                            <Run Text="Desc Hash:  " Foreground="#801F1F1F"/>
-                            <Run Text="{Binding DescriptionHashDisplay, Mode=OneWay}"/>
-                        </TextBlock>
-                    </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
-
-
-            <!-- Panel 3: 메달 위치 / 파일명 -->
-            <Border Grid.Row="2"
-                    Height="70"
-                    Background="#B0FFFFFF"
-                    BorderBrush="#20000000"
-                    BorderThickness="1"
-                    CornerRadius="12"
-                    Padding="12">
-                <Border.Effect>
-                    <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="10" ShadowDepth="3"/>
-                </Border.Effect>
-                <StackPanel>
-                <StackPanel>
-                    <!-- (Removed "3번" label as requested) -->
-                    <TextBlock FontSize="11" Margin="0,0,0,2">
-                        <Run Text="메달 위치: " FontWeight="SemiBold"/>
-                        <Run Text="{Binding MedalPosX, Mode=OneWay, StringFormat='X={0}'}"/>
-                        <Run Text=", "/>
-                        <Run Text="{Binding MedalPosY, Mode=OneWay, StringFormat='Y={0}'}"/>
-                    </TextBlock>
-                    <TextBlock FontSize="10" Opacity="0.8">
-                        <Run Text="파일명: "/>
-                        <Run Text="{Binding FileNamePrefix, Mode=OneWay, StringFormat='{}{0:D2}.'}"/>
-                        <Run Text="{Binding FileNameNumber, Mode=OneWay, StringFormat='{}{0:D3}.'}"/>
-                        <Run Text="{Binding FileNameVariant, Mode=OneWay, StringFormat='{}{0:D2}'}"/>
-                    </TextBlock>
-                </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- Panel 4: 기타 필드 -->
-            <Border Grid.Row="4"
-                    Height="70"
-                    Background="#B0FFFFFF"
-                    BorderBrush="#20000000"
-                    BorderThickness="1"
-                    CornerRadius="12"
-                    Padding="12">
-                <Border.Effect>
-                    <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="10" ShadowDepth="3"/>
-                </Border.Effect>
-                <StackPanel>
-                    <!-- (Removed "4번" label as requested) -->
-                    <TextBlock Text="{Binding Unk1Display, Mode=OneWay, StringFormat='Unk1: {0}'}"
-                               FontSize="10" FontFamily="Consolas" Opacity="0.9" Margin="0,0,0,2"/>
-                    <TextBlock Text="{Binding Unk2Display, Mode=OneWay, StringFormat='Unk2: {0}'}"
-                               FontSize="10" FontFamily="Consolas" Opacity="0.8" Margin="0,0,0,2"/>
-                    <StackPanel Orientation="Horizontal"
-                                Visibility="{Binding IsYokai, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <!-- Tribe/Rank moved to Icon Panel, removed from here -->
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- Panel 5: Description -->
-            <Border Grid.Row="6"
-                    Background="#B0FFFFFF"
-                    BorderBrush="#20000000"
-                    BorderThickness="1"
-                    CornerRadius="12"
-                    Padding="12">
-                <Border.Effect>
-                    <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="10" ShadowDepth="3"/>
-                </Border.Effect>
-
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- (Removed "5번" label as requested) -->
-
-                    <ScrollViewer Grid.Row="1"
-                                  VerticalScrollBarVisibility="Auto">
-                        <TextBlock x:Name="TxtDescription"
-                                   Text="{Binding DescriptionDisplay, Mode=OneWay}"
-                                   Background="Transparent"
-                                   TextWrapping="Wrap"
-                                   FontSize="11"
-                                   LineHeight="14"
-                                   LineStackingStrategy="BlockLineHeight"
-                                   VerticalAlignment="Stretch"/>
-                    </ScrollViewer>
                 </Grid>
             </Border>
         </Grid>
 
-    <!-- Tribe Selector Overlay -->
-    <Grid Grid.Column="0" Grid.ColumnSpan="3" 
-          Visibility="{Binding IsTribeSelectorVisible, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
-          Panel.ZIndex="100">
-        <Border Background="#40000000">
-            <Border.InputBindings>
-                <MouseBinding MouseAction="LeftClick" Command="{Binding ToggleTribeSelectorCommand}"/>
-            </Border.InputBindings>
-        </Border>
-        <Border HorizontalAlignment="Center" VerticalAlignment="Center"
-                Background="#F0FFFFFF" CornerRadius="15" Padding="20"
-                BorderBrush="#40FFFFFF" BorderThickness="1"
-                MinWidth="200">
-            <Border.Effect>
-                <DropShadowEffect Color="Black" Opacity="0.2" BlurRadius="20"/>
-            </Border.Effect>
-            <StackPanel>
-                <TextBlock Text="Select Tribe" FontWeight="Bold" Margin="0,0,0,10" HorizontalAlignment="Center"/>
-                <ItemsControl ItemsSource="{Binding TribeSelectionList}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Columns="4"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Command="{Binding DataContext.SelectTribeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                    CommandParameter="{Binding Key}"
-                                    Style="{StaticResource PuniIconButtonStyle}" Width="48" Height="48" Margin="6"
-                                    ToolTip="{Binding DisplayName}">
-                                <Image Source="{Binding Icon}"/>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Button Content="Cancel" Command="{Binding ToggleTribeSelectorCommand}" 
-                        Style="{StaticResource PuniCancelButtonStyle}" Margin="0,15,0,0" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Border>
-    </Grid>
+        <!-- ??????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???-->
+        <!-- Panel 2: Right Content (Modern Card Layout) -->
+        <!-- ??????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???-->
+        <Grid x:Name="CharacterDetailHost" Grid.Column="2" Margin="0,-15,0,-30" ClipToBounds="False">
+                <Border x:Name="CharacterDetailBackdropBorder" CornerRadius="28"
+                        Tag="ToolPanelBackdropGlass"
+                        IsHitTestVisible="False"/>
+                <Border x:Name="CharacterDetailMainBorder" Background="#33FFFFFF"
+                        BorderBrush="#22FFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="28"
+                        ClipToBounds="False"
+                        Padding="14">
+                    <ScrollViewer x:Name="DetailScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0">
+                        <StackPanel>
+                
+                <!-- 1. Identity Card (Top) - Enhanced Acrylic Style -->
+                <Border Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="24" Padding="18" Margin="0,0,0,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Large Icon -->
+                        <Border Grid.Column="0" Width="80" Height="80" CornerRadius="20" Background="#20000000" ClipToBounds="True">
+                            <Image x:Name="ImgCharacterIcon" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+                        
+                        <!-- Name + Special + Toggles -->
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <!-- 이름 행: 이름 TextBox만 표시 -->
+                            <TextBox Text="{Binding SelectedCharacter.Name, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="28" FontWeight="Bold" FontFamily="G마켓 산스 TTF Bold, Malgun Gothic"
+                                     Background="Transparent" BorderThickness="0" Foreground="#1F1F1F"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,0,8"/>
 
-    <!-- Rank Selector Overlay -->
-    <Grid Grid.Column="0" Grid.ColumnSpan="3" 
-          Visibility="{Binding IsRankSelectorVisible, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
-          Panel.ZIndex="100">
-        <Border Background="#40000000">
-            <Border.InputBindings>
-                <MouseBinding MouseAction="LeftClick" Command="{Binding ToggleRankSelectorCommand}"/>
-            </Border.InputBindings>
+                            <Border Background="#1AFFFFFF"
+                                    BorderBrush="#1F000000"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="10,8"
+                                    Margin="0,0,0,8"
+                                    Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel>
+                                    <TextBlock Text="특이사항" FontSize="11" FontWeight="SemiBold" Opacity="0.72" Margin="0,0,0,6"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox Content="Unk6"
+                                                  IsChecked="{Binding SpecialUnk6, Mode=TwoWay}"
+                                                  Style="{StaticResource IosFilterChipCheckBoxStyle}"
+                                                  Margin="0,0,8,0"/>
+                                        <CheckBox Content="레어"
+                                                  IsChecked="{Binding SpecialIsRare, Mode=TwoWay}"
+                                                  Visibility="{Binding ShowYokaiSpecialFlags, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                  Style="{StaticResource IosFilterChipCheckBoxStyle}"
+                                                  Margin="0,0,8,0"/>
+                                        <CheckBox Content="레전드"
+                                                  IsChecked="{Binding SpecialIsLegend, Mode=TwoWay}"
+                                                  Visibility="{Binding ShowYokaiSpecialFlags, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                  Style="{StaticResource IosFilterChipCheckBoxStyle}"
+                                                  Margin="0,0,8,0"/>
+                                        <CheckBox Content="클래식"
+                                                  IsChecked="{Binding SpecialIsClassic, Mode=TwoWay}"
+                                                  Visibility="{Binding ShowYokaiSpecialFlags, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                  Style="{StaticResource IosFilterChipCheckBoxStyle}"
+                                                  Margin="0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Grid.Column="0">
+                                    <Button x:Name="BtnTribeSelector"
+                                            Command="{Binding ToggleTribeSelectorCommand}"
+                                            Cursor="Hand"
+                                            IsEnabled="{Binding IsYokai}"
+                                            Background="#FF333333"
+                                            BorderBrush="#66FFFFFF"
+                                            BorderThickness="1">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Grid>
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="14" Padding="14,8">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Image Source="{Binding SelectedCharacter.TribeIcon}" Width="16" Height="16" Margin="0,0,8,0"/>
+                                                            <TextBlock Text="종족 변경" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#F2FFFFFF"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Popup Placement="Bottom"
+                                           PlacementTarget="{Binding ElementName=BtnTribeSelector}"
+                                           DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                                           AllowsTransparency="True"
+                                           PopupAnimation="Fade"
+                                           StaysOpen="True"
+                                           IsOpen="{Binding IsTribeSelectorVisible, Mode=TwoWay}">
+                                        <Border Width="290"
+                                                Margin="0,8,0,0"
+                                                Background="#EEF7F9FC"
+                                                BorderBrush="#44000000"
+                                                BorderThickness="1"
+                                                CornerRadius="16"
+                                                Padding="10">
+                                            <StackPanel>
+                                                <TextBlock Text="종족 선택" FontSize="12" FontWeight="Bold" Margin="2,0,0,8" Opacity="0.75"/>
+                                                <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                    <ItemsControl ItemsSource="{Binding TribeSelectionList}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Button Command="{Binding DataContext.SelectTribeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                        CommandParameter="{Binding Key}"
+                                                                        Margin="4"
+                                                                        Padding="8,6"
+                                                                        Background="#26000000"
+                                                                        BorderBrush="#22000000"
+                                                                        BorderThickness="1"
+                                                                        Cursor="Hand">
+                                                                    <Button.Template>
+                                                                        <ControlTemplate TargetType="Button">
+                                                                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+                                                                                <StackPanel Orientation="Horizontal">
+                                                                                    <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0"/>
+                                                                                    <TextBlock Text="{Binding DisplayName}" FontSize="12" VerticalAlignment="Center"/>
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </ControlTemplate>
+                                                                    </Button.Template>
+                                                                </Button>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </ScrollViewer>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+
+                                <Grid Grid.Column="2">
+                                    <Button x:Name="BtnRankSelector"
+                                            Command="{Binding ToggleRankSelectorCommand}"
+                                            Cursor="Hand"
+                                            IsEnabled="{Binding IsYokai}"
+                                            Background="#FF333333"
+                                            BorderBrush="#66FFFFFF"
+                                            BorderThickness="1">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Grid>
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="14" Padding="14,8">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Image Source="{Binding SelectedCharacter.RankIcon}" Width="16" Height="16" Margin="0,0,8,0"/>
+                                                            <TextBlock Text="랭크 변경" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#F2FFFFFF"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Popup Placement="Bottom"
+                                           PlacementTarget="{Binding ElementName=BtnRankSelector}"
+                                           DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                                           AllowsTransparency="True"
+                                           PopupAnimation="Fade"
+                                           StaysOpen="True"
+                                           IsOpen="{Binding IsRankSelectorVisible, Mode=TwoWay}">
+                                        <Border Width="260"
+                                                Margin="0,8,0,0"
+                                                Background="#EEF7F9FC"
+                                                BorderBrush="#44000000"
+                                                BorderThickness="1"
+                                                CornerRadius="16"
+                                                Padding="10">
+                                            <StackPanel>
+                                                <TextBlock Text="랭크 선택" FontSize="12" FontWeight="Bold" Margin="2,0,0,8" Opacity="0.75"/>
+                                                <ItemsControl ItemsSource="{Binding RankSelectionList}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Button Command="{Binding DataContext.SelectRankCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding Key}"
+                                                                    Margin="4"
+                                                                    Padding="8,6"
+                                                                    MinWidth="72"
+                                                                    Background="#26000000"
+                                                                    BorderBrush="#22000000"
+                                                                    BorderThickness="1"
+                                                                    Cursor="Hand">
+                                                                <Button.Template>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+                                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0"/>
+                                                                                <TextBlock Text="{Binding DisplayName}" FontSize="12" VerticalAlignment="Center"/>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Button.Template>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Technical Hash Info (Right Aligned) -->
+                        <StackPanel Grid.Column="3" VerticalAlignment="Center" Opacity="0.6">
+                            <TextBlock Text="해시 데이터" FontSize="10" FontWeight="Bold" Margin="0,0,0,8" HorizontalAlignment="Right"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,2">
+                                <TextBlock Text="Base" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <Border Width="116" Background="#30000000" CornerRadius="6" Padding="6,2">
+                                    <TextBox Text="{Binding BaseHashText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                             Background="Transparent" BorderThickness="0"
+                                             FontFamily="Consolas" FontSize="11"/>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,2">
+                                <TextBlock Text="Name" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <Border Width="116" Background="#30000000" CornerRadius="6" Padding="6,2">
+                                    <TextBox Text="{Binding NameHashText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                             Background="Transparent" BorderThickness="0"
+                                             FontFamily="Consolas" FontSize="11"/>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,2">
+                                <TextBlock Text="설명" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <Border Width="116" Background="#30000000" CornerRadius="6" Padding="6,2">
+                                    <TextBox Text="{Binding DescriptionHashText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                             Background="Transparent" BorderThickness="0"
+                                             FontFamily="Consolas" FontSize="11"/>
+                                </Border>
+                            </StackPanel>
+                            
+                            <!-- 되돌리기/초기화 버튼 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0"
+                                        Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Button Content="되돌리기"
+                                        Command="{Binding RevertEditsCommand}"
+                                        Cursor="Hand"
+                                        FontSize="10"
+                                        Padding="8,4"
+                                        Margin="0,0,4,0"
+                                        Background="#40000000"
+                                        Foreground="#1F1F1F"
+                                        BorderBrush="#30000000"
+                                        BorderThickness="1">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="8"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Content="초기화"
+                                        Command="{Binding ResetToDefaultCommand}"
+                                        Cursor="Hand"
+                                        FontSize="10"
+                                        Padding="8,4"
+                                        Background="#50FF5722"
+                                        Foreground="#1F1F1F"
+                                        BorderBrush="#40FF5722"
+                                        BorderThickness="1">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="8"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- 2. Gameplay Info (Medal & Food) -->
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Medal Info -->
+                    <Border Grid.Column="0" Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="24" Padding="14">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Border Width="52" Height="52" CornerRadius="14" Background="#20000000" Margin="0,0,12,0">
+                                <Image Source="{Binding SelectedMedalIcon}" Width="40" Height="40"
+                                       RenderOptions.BitmapScalingMode="HighQuality"
+                                       SnapsToDevicePixels="True"/>
+                            </Border>
+                            
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="메달 위치" FontSize="11" FontWeight="Bold" Opacity="0.5" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <TextBlock Text="X:" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" Margin="0,0,4,0"/>
+                                    <Border Width="36" Background="#30000000" CornerRadius="6" Padding="4,1">
+                                        <TextBox Text="{Binding SelectedCharacter.MedalPosX, UpdateSourceTrigger=PropertyChanged}" 
+                                                 Background="Transparent" BorderThickness="0" TextAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Y:" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" Margin="12,0,4,0"/>
+                                    <Border Width="36" Background="#30000000" CornerRadius="6" Padding="4,1">
+                                        <TextBox Text="{Binding SelectedCharacter.MedalPosY, UpdateSourceTrigger=PropertyChanged}" 
+                                                 Background="Transparent" BorderThickness="0" TextAlignment="Center"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{Binding MedalKeyInfo}" FontSize="10" Opacity="0.58" HorizontalAlignment="Left" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Food Info -->
+                    <Border Grid.Column="2" Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="24" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="음식 선호도" FontSize="11" FontWeight="Bold" Opacity="0.5" Margin="0,0,0,8"/>
+                            
+                            <!-- Favorite -->
+                            <Border Background="Transparent" BorderBrush="#12000000" BorderThickness="1" CornerRadius="14" Padding="8,6" Margin="0,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Background="#24FF5722" CornerRadius="10" Padding="8,4" Margin="0,0,10,0" VerticalAlignment="Center">
+                                        <TextBlock Text="좋아하는 음식" Foreground="#C7461F" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ComboBox Grid.Column="1"
+                                              ItemsSource="{Binding FoodOptions}"
+                                              SelectedValue="{Binding SelectedCharacter.FavoriteFoodHash, Mode=TwoWay}"
+                                              SelectedValuePath="Key"
+                                              Style="{StaticResource IosFilterComboBoxStyle}"
+                                              Padding="8,1"
+                                              Height="30">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Image Source="{Binding Icon}" Width="18" Height="18" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <!-- Hated -->
+                            <Border Background="Transparent" BorderBrush="#12000000" BorderThickness="1" CornerRadius="14" Padding="8,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Background="#222196F3" CornerRadius="10" Padding="8,4" Margin="0,0,10,0" VerticalAlignment="Center">
+                                        <TextBlock Text="싫어하는 음식" Foreground="#1C5E95" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ComboBox Grid.Column="1"
+                                              ItemsSource="{Binding FoodOptions}"
+                                              SelectedValue="{Binding SelectedCharacter.HatedFoodHash, Mode=TwoWay}"
+                                              SelectedValuePath="Key"
+                                              Style="{StaticResource IosFilterComboBoxStyle}"
+                                              Padding="8,1"
+                                              Height="30">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Image Source="{Binding Icon}" Width="18" Height="18" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+                
+                <!-- 3. Description -->
+                <Border Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="24" Padding="20">
+                    <StackPanel>
+                        <TextBlock Text="도감 설명" FontSize="11" FontWeight="Bold" Opacity="0.5" Margin="0,0,0,12"/>
+                        <Border Background="#18FFFFFF" BorderBrush="#12000000" BorderThickness="1" CornerRadius="12" Padding="10">
+                            <TextBox x:Name="TxtDescription"
+                                     Background="Transparent" BorderThickness="0"
+                                     TextWrapping="Wrap" AcceptsReturn="True"
+                                     FontSize="14" Foreground="#1F1F1F"
+                                     FontFamily="G마켓 산스 TTF Medium, Malgun Gothic"
+                                     MinHeight="100" MaxHeight="180"
+                                     VerticalScrollBarVisibility="Auto"
+                                     HorizontalScrollBarVisibility="Disabled"
+                                     IsReadOnly="False"
+                                     Text="{Binding SelectedCharacter.Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+                
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+        </Grid>
+
+        <!-- ??????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???-->
+        <!-- Filter Overlay (Right Slide-in) -->
+        <!-- ??????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???????븍툖????????쒓낮痢??됰슦?節낆젂???-->
+        <Border x:Name="FilterPanel"
+                Grid.Column="2"
+                Width="300"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Stretch"
+                Background="#F8F8F8"
+                BorderBrush="#10000000"
+                BorderThickness="0"
+                CornerRadius="24,0,0,24"
+                Tag="ToolGlassPanelStatic"
+                Padding="24"
+                Panel.ZIndex="100"
+                Visibility="Collapsed"
+                ClipToBounds="True"
+                Margin="0,20,0,20">
+            <Border.RenderTransform>
+                 <TranslateTransform x:Name="FilterPanelTranslate" X="300"/>
+            </Border.RenderTransform>
+            
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Header -->
+                <Grid Grid.Row="0" Margin="0,0,0,20">
+                    <TextBlock Text="Advanced Filter" FontSize="18" FontWeight="Bold"/>
+                    <Button x:Name="BtnCloseFilter" Content="X" HorizontalAlignment="Right"
+                            Background="Transparent" BorderThickness="0" FontSize="16" Cursor="Hand"
+                            Click="BtnCloseFilter_Click"/>
+                </Grid>
+                
+                <!-- Filter Content -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- Sort -->
+                        <Border Style="{StaticResource IosListGroupCardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Sort" FontSize="12" FontWeight="Bold" Opacity="0.65" Margin="0,0,0,8"/>
+                                <ComboBox ItemsSource="{Binding SortOptionList}"
+                                          SelectedItem="{Binding SelectedSortOption, Mode=TwoWay}"
+                                          DisplayMemberPath="DisplayName"
+                                          Style="{StaticResource IosFilterComboBoxStyle}"/>
+                            </StackPanel>
+                        </Border>
+                                   
+                        <!-- Category -->
+                        <Border Style="{StaticResource IosListGroupCardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Category" FontSize="12" FontWeight="Bold" Opacity="0.65" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox Content="Yokai" IsChecked="{Binding FilterShowYokai, Mode=TwoWay}" Style="{StaticResource IosFilterChipCheckBoxStyle}"/>
+                                    <CheckBox Content="NPC" IsChecked="{Binding FilterShowNPC, Mode=TwoWay}" Style="{StaticResource IosFilterChipCheckBoxStyle}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                         
+                        <!-- Rank -->
+                        <Border Style="{StaticResource IosListGroupCardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Rank" FontSize="12" FontWeight="Bold" Opacity="0.65" Margin="0,0,0,8"/>
+                                <ComboBox ItemsSource="{Binding RankFilterList}"
+                                          SelectedItem="{Binding SelectedRankFilter, Mode=TwoWay}"
+                                          Style="{StaticResource IosFilterComboBoxStyle}">
+                                     <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                                                <TextBlock Text="{Binding DisplayName}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+                         
+                        <!-- Tribe -->
+                        <Border Style="{StaticResource IosListGroupCardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Tribe" FontSize="12" FontWeight="Bold" Opacity="0.65" Margin="0,0,0,8"/>
+                                <ComboBox ItemsSource="{Binding TribeFilterList}"
+                                          SelectedItem="{Binding SelectedTribeFilter, Mode=TwoWay}"
+                                          Style="{StaticResource IosFilterComboBoxStyle}">
+                                     <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                                                <TextBlock Text="{Binding DisplayName}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
         </Border>
-        <Border HorizontalAlignment="Center" VerticalAlignment="Center"
-                Background="#F0FFFFFF" CornerRadius="15" Padding="20"
-                BorderBrush="#40FFFFFF" BorderThickness="1"
-                MinWidth="200">
-            <Border.Effect>
-                <DropShadowEffect Color="Black" Opacity="0.2" BlurRadius="20"/>
-            </Border.Effect>
-            <StackPanel>
-                <TextBlock Text="Select Rank" FontWeight="Bold" Margin="0,0,0,10" HorizontalAlignment="Center"/>
-                <ItemsControl ItemsSource="{Binding RankSelectionList}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Columns="3"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Command="{Binding DataContext.SelectRankCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                    CommandParameter="{Binding Key}"
-                                    Style="{StaticResource PuniIconButtonStyle}" Width="48" Height="48" Margin="6"
-                                    ToolTip="{Binding DisplayName}">
-                                <Image Source="{Binding Icon}"/>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Button Content="Cancel" Command="{Binding ToggleRankSelectorCommand}" 
-                        Style="{StaticResource PuniCancelButtonStyle}" Margin="0,15,0,0" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Border>
-    </Grid>
+
     </Grid>
 </UserControl>
+
+

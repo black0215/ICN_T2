@@ -346,8 +346,8 @@ namespace Albatross.Yokai_Watch.Games.YW1
             CfgBin encountConfig = new CfgBin();
             encountConfig.Open(Game.Directory.GetFileFromFullPath(Files["map_encounter"].Path + "/" + mapName + "/" + lastEncountConfigFile));
 
-            encountConfig.ReplaceEntry("ENCOUNT_TABLE_BEGIN", "ENCOUNT_TABLE_INFO_", encountTables);
-            encountConfig.ReplaceEntry("ENCOUNT_CHARA_BEGIN", "ENCOUNT_CHARA_INFO_", encountCharas);
+            encountConfig.ReplaceEntry("ENCOUNT_TABLE_BEGIN", "ENCOUNT_TABLE_INFO_", formatEncountTables);
+            encountConfig.ReplaceEntry("ENCOUNT_CHARA_BEGIN", "ENCOUNT_CHARA_INFO_", formatEncountCharas);
 
             Game.Directory.GetFolderFromFullPath("/data/res/map/" + mapName).Files[lastEncountConfigFile].ByteContent = encountConfig.Save();
         }

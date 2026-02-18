@@ -65,7 +65,8 @@ namespace ICN_T2.UI.WPF.ViewModels
         Default,
         CharacterInfo,
         CharacterScale,
-        YokaiStats
+        YokaiStats,
+        EncounterEditor
     }
 
     public class ItemCommand : ICommand

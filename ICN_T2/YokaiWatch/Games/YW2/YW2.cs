@@ -1,5 +1,6 @@
 using ICN_T2.Logic.Level5.Archives.ARC0; // ARC0
 using ICN_T2.Logic.Level5.Binary;       // CfgBin
+using ICN_T2.Logic.Level5.Archives.XPCK; // XPCK
 using ICN_T2.Logic.Level5.Text;         // T2bþ
 using ICN_T2.Logic.VirtualFileSystem;   // VirtualDirectory
 using ICN_T2.Tools;
@@ -14,6 +15,7 @@ using System.Linq;
 
 namespace ICN_T2.YokaiWatch.Games.YW2
 {
+    using YW2Logic = ICN_T2.YokaiWatch.Games.YW2.Logic;
     public class YW2 : IGame
     {
         public string Name => "Yo-Kai Watch 2";
@@ -29,6 +31,12 @@ namespace ICN_T2.YokaiWatch.Games.YW2
         public Dictionary<string, GameFile> Files { get; set; }
 
         private Dictionary<string, string> _filePathCache = new Dictionary<string, string>();
+        private readonly object _characterbaseCacheLock = new object();
+        private CharaBase[]? _cachedYokaiCharacterbase;
+        private CharaBase[]? _cachedNpcCharacterbase;
+
+        // Cached character name map (hash -> name) to avoid re-parsing chara_text
+        private Dictionary<int, string>? _cachedCharaNameMap;
 
         // Constructor overload for Project Mode
         public YW2(Project project, string language = "ko")
@@ -599,6 +607,68 @@ namespace ICN_T2.YokaiWatch.Games.YW2
 
 
 
+        // --- Cached Name Map (Performance) ---
+
+        /// <summary>
+        /// Returns a cached dictionary mapping CRC32 hash -> character name.
+        /// Parses chara_text only once, reuses on subsequent calls.
+        /// </summary>
+        public Dictionary<int, string> GetCharaNameMap()
+        {
+            if (_cachedCharaNameMap != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Perf] YW2.GetCharaNameMap cache-hit: {_cachedCharaNameMap.Count} entries");
+                return _cachedCharaNameMap;
+            }
+
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            var nameMap = new Dictionary<int, string>();
+
+            try
+            {
+                if (Files == null || !Files.ContainsKey("chara_text"))
+                {
+                    System.Diagnostics.Debug.WriteLine("[YW2.GetCharaNameMap] chara_text not found in Files");
+                    _cachedCharaNameMap = nameMap;
+                    return nameMap;
+                }
+
+                var gf = Files["chara_text"];
+                var vf = gf.GetStream();
+                if (vf == null)
+                {
+                    _cachedCharaNameMap = nameMap;
+                    return nameMap;
+                }
+
+                byte[] data = vf.ByteContent ?? vf.ReadWithoutCaching();
+                if (data == null || data.Length == 0)
+                {
+                    _cachedCharaNameMap = nameMap;
+                    return nameMap;
+                }
+
+                var textObj = new T2bþ(data);
+
+                foreach (var kv in textObj.Nouns)
+                {
+                    if (kv.Value.Strings != null && kv.Value.Strings.Count > 0 && !string.IsNullOrEmpty(kv.Value.Strings[0].Text))
+                    {
+                        nameMap[kv.Key] = kv.Value.Strings[0].Text;
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[Perf] YW2.GetCharaNameMap: parsed {nameMap.Count} names in {timer.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetCharaNameMap] Error: {ex.Message}");
+            }
+
+            _cachedCharaNameMap = nameMap;
+            return nameMap;
+        }
+
         // --- Logic Implementation (IGame) ---
 
         // Helper to find file content (레거시와 동일: StartsWith 방식 폴백)
@@ -625,10 +695,28 @@ namespace ICN_T2.YokaiWatch.Games.YW2
         // [Refactored] CharaBase — 구체 클래스(YokaiCharabase/NPCCharabase)로 변환
         public CharaBase[] GetCharacterbase(bool isYokai)
         {
+            lock (_characterbaseCacheLock)
+            {
+                if (isYokai && _cachedYokaiCharacterbase != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Perf] YW2.GetCharacterbase(Yokai) cache-hit count={_cachedYokaiCharacterbase.Length}");
+                    return _cachedYokaiCharacterbase;
+                }
+
+                if (!isYokai && _cachedNpcCharacterbase != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Perf] YW2.GetCharacterbase(NPC) cache-hit count={_cachedNpcCharacterbase.Length}");
+                    return _cachedNpcCharacterbase;
+                }
+            }
+
             string type = isYokai ? "Yokai" : "NPC";
             System.Diagnostics.Debug.WriteLine($"[YW2.GetCharacterbase] Loading {type} characterbase...");
+            var totalTimer = System.Diagnostics.Stopwatch.StartNew();
+            var sectionTimer = System.Diagnostics.Stopwatch.StartNew();
 
             byte[]? data = GetFileContent("chara_base", "chara_base");
+            long fileLoadMs = sectionTimer.ElapsedMilliseconds;
             if (data == null)
             {
                 System.Diagnostics.Debug.WriteLine($"[YW2.GetCharacterbase] ERROR: Failed to load chara_base.cfg.bin");
@@ -638,7 +726,9 @@ namespace ICN_T2.YokaiWatch.Games.YW2
             System.Diagnostics.Debug.WriteLine($"[YW2.GetCharacterbase] Loaded chara_base.cfg.bin ({data.Length} bytes)");
 
             CfgBin cfg = new CfgBin();
+            sectionTimer.Restart();
             cfg.Open(data);
+            long cfgOpenMs = sectionTimer.ElapsedMilliseconds;
             System.Diagnostics.Debug.WriteLine($"[YW2.GetCharacterbase] CfgBin opened, {cfg.Entries.Count} entries found");
 
             string entryName = isYokai ? "CHARA_BASE_YOKAI_INFO_BEGIN" : "CHARA_BASE_INFO_BEGIN";
@@ -654,6 +744,7 @@ namespace ICN_T2.YokaiWatch.Games.YW2
 
             System.Diagnostics.Debug.WriteLine($"[YW2.GetCharacterbase] Found entry '{entry.GetName()}' with {entry.Children.Count} children");
 
+            sectionTimer.Restart();
             var result = entry.Children.Select(x =>
             {
                 try
@@ -676,8 +767,18 @@ namespace ICN_T2.YokaiWatch.Games.YW2
                 }
                 catch { return null; }
             }).Where(x => x != null).ToArray()!;
+            long convertMs = sectionTimer.ElapsedMilliseconds;
 
             System.Diagnostics.Debug.WriteLine($"[YW2.GetCharacterbase] Converted to {result.Length} {type} objects");
+            System.Diagnostics.Debug.WriteLine($"[Perf] YW2.GetCharacterbase({type}) fileLoad={fileLoadMs}ms cfgOpen={cfgOpenMs}ms convert={convertMs}ms total={totalTimer.ElapsedMilliseconds}ms");
+
+            lock (_characterbaseCacheLock)
+            {
+                if (isYokai)
+                    _cachedYokaiCharacterbase = result;
+                else
+                    _cachedNpcCharacterbase = result;
+            }
 
             return result;
         }
@@ -735,6 +836,12 @@ namespace ICN_T2.YokaiWatch.Games.YW2
             {
                 System.Diagnostics.Debug.WriteLine("[YW2] Warning: 'chara_base' key not found in Files dictionary.");
             }
+
+            lock (_characterbaseCacheLock)
+            {
+                _cachedYokaiCharacterbase = null;
+                _cachedNpcCharacterbase = null;
+            }
         }
 
         private void SaveToProject(string key, byte[] data)
@@ -782,21 +889,105 @@ namespace ICN_T2.YokaiWatch.Games.YW2
 
         public void SaveCharaparam(YokaiStats[] charaparams)
         {
-            if (Files.ContainsKey("chara_param"))
+            if (charaparams == null)
             {
-                var gf = Files["chara_param"];
-                var vf = gf.GetStream(); // Use GetStream()
+                throw new ArgumentNullException(nameof(charaparams));
+            }
 
-                CfgBin cfg = new CfgBin();
-                cfg.Open(vf.ByteContent ?? vf.ReadWithoutCaching());
+            if (!Files.ContainsKey("chara_param"))
+            {
+                throw new FileNotFoundException("'chara_param' key not found in Files.");
+            }
 
-                cfg.ReplaceEntry<Charaparam>("CHARA_PARAM_INFO_BEGIN", "CHARA_PARAM_INFO_", charaparams.Cast<Charaparam>().ToArray());
-                vf.ByteContent = cfg.Save();
+            var gf = Files["chara_param"];
+            var vf = gf.GetStream();
+            if (vf == null)
+            {
+                throw new FileNotFoundException("Unable to resolve 'chara_param' stream.");
+            }
 
-                if (CurrentProject != null)
-                {
-                    SaveToProject("chara_param", vf.ByteContent);
-                }
+            CfgBin cfg = new CfgBin();
+            cfg.Open(vf.ReadWithoutCaching());
+
+            var concrete = charaparams.Select(x => x as Charaparam ?? new Charaparam
+            {
+                ParamHash = x.ParamHash,
+                BaseHash = x.BaseHash,
+                Tribe = x.Tribe,
+                MinHP = x.MinHP,
+                MinStrength = x.MinStrength,
+                MinSpirit = x.MinSpirit,
+                MinDefense = x.MinDefense,
+                MinSpeed = x.MinSpeed,
+                MaxHP = x.MaxHP,
+                MaxStrength = x.MaxStrength,
+                MaxSpirit = x.MaxSpirit,
+                MaxDefense = x.MaxDefense,
+                MaxSpeed = x.MaxSpeed,
+                AttackHash = x.AttackHash,
+                TechniqueHash = x.TechniqueHash,
+                InspiritHash = x.InspiritHash,
+                AttributeDamageFire = x.AttributeDamageFire,
+                AttributeDamageIce = x.AttributeDamageIce,
+                AttributeDamageEarth = x.AttributeDamageEarth,
+                AttributeDamageLigthning = x.AttributeDamageLigthning,
+                AttributeDamageWater = x.AttributeDamageWater,
+                AttributeDamageWind = x.AttributeDamageWind,
+                SoultimateHash = x.SoultimateHash,
+                AbilityHash = x.AbilityHash,
+                Money = x.Money,
+                Experience = x.Experience,
+                Drop1Hash = x.Drop1Hash,
+                Drop1Rate = x.Drop1Rate,
+                Drop2Hash = x.Drop2Hash,
+                Drop2Rate = x.Drop2Rate,
+                ExperienceCurve = x.ExperienceCurve,
+                Quote1 = x.Quote1,
+                Quote2 = x.Quote2,
+                Quote3 = x.Quote3,
+                BefriendQuote = x.BefriendQuote,
+                EvolveOffset = x.EvolveOffset,
+                EvolveParam = x.EvolveParam,
+                EvolveLevel = x.EvolveLevel,
+                EvolveCost = x.EvolveCost,
+                MedaliumOffset = x.MedaliumOffset,
+                ShowInMedalium = x.ShowInMedalium,
+                ScoutableHash = x.ScoutableHash,
+                FavoriteDonut = x.FavoriteDonut,
+                Speed = x.Speed,
+                Strongest = x.Strongest,
+                Weakness = x.Weakness,
+                CanFuse = x.CanFuse,
+                WaitTime = x.WaitTime,
+                EquipmentSlotsAmount = x.EquipmentSlotsAmount,
+                BattleType = x.BattleType,
+                Attitude = x.Attitude,
+                AttackPercentage = x.AttackPercentage,
+                TechniquePercentage = x.TechniquePercentage,
+                InspiritPercentage = x.InspiritPercentage,
+                GuardHash = x.GuardHash,
+                GuardPercentage = x.GuardPercentage,
+                BlasterSkill = x.BlasterSkill,
+                BlasterAttack = x.BlasterAttack,
+                BlasterSoultimate = x.BlasterSoultimate,
+                BlasterMoveSlot1 = x.BlasterMoveSlot1,
+                BlasterEarnLevelMoveSlot1 = x.BlasterEarnLevelMoveSlot1,
+                BlasterMoveSlot2 = x.BlasterMoveSlot2,
+                BlasterEarnLevelMoveSlot2 = x.BlasterEarnLevelMoveSlot2,
+                BlasterMoveSlot3 = x.BlasterMoveSlot3,
+                BlasterEarnLevelMoveSlot3 = x.BlasterEarnLevelMoveSlot3,
+                BlasterMoveSlot4 = x.BlasterMoveSlot4,
+                BlasterEarnLevelMoveSlot4 = x.BlasterEarnLevelMoveSlot4,
+                DropOniOrbRate = x.DropOniOrbRate,
+                DropOniOrb = x.DropOniOrb
+            }).ToArray();
+
+            cfg.ReplaceEntry("CHARA_PARAM_INFO_BEGIN", "CHARA_PARAM_INFO_", concrete);
+            vf.ByteContent = cfg.Save();
+
+            if (CurrentProject != null)
+            {
+                SaveToProject("chara_param", vf.ByteContent);
             }
         }
 
@@ -834,23 +1025,125 @@ namespace ICN_T2.YokaiWatch.Games.YW2
             }
         }
 
-        // [Refactored] CharScale
+        // [Refactored] CharScale - loads from separate chara_scale file
         public CharScale[] GetCharascale()
         {
-            byte[]? data = GetFileContent("chara_base", "chara_base");
-            if (data == null) return new CharScale[0];
+            System.Diagnostics.Debug.WriteLine("[YW2.GetCharascale] Starting...");
 
-            CfgBin cfg = new CfgBin(); cfg.Open(data);
-            return cfg.Entries
-                .Where(x => x.GetName() == "CHARA_SCALE_INFO_LIST_BEG")
-                .SelectMany(x => x.Children)
-                .Select(x => x.ToClass<CharScale>())
-                .ToArray();
+            try
+            {
+                // CharScale is in a separate file, not in chara_base!
+                var characterFolder = Game?.Directory?.GetFolderFromFullPathSafe("data/res/character");
+                if (characterFolder == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[YW2.GetCharascale] ERROR: character folder not found");
+                    return new CharScale[0];
+                }
+
+                var scaleFile = characterFolder.Files.Keys
+                    .Where(x => x.StartsWith("chara_scale", StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x)
+                    .FirstOrDefault();
+
+                if (scaleFile == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[YW2.GetCharascale] ERROR: No chara_scale file found");
+                    System.Diagnostics.Debug.WriteLine($"[YW2.GetCharascale] Available files: {string.Join(", ", characterFolder.Files.Keys.Take(10))}");
+                    return new CharScale[0];
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetCharascale] Found file: {scaleFile}");
+
+                byte[] data = characterFolder.GetFileDataReadOnly(scaleFile);
+                if (data == null || data.Length == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("[YW2.GetCharascale] ERROR: file is empty");
+                    return new CharScale[0];
+                }
+
+                CfgBin cfg = new CfgBin();
+                cfg.Open(data);
+
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetCharascale] CfgBin opened, {cfg.Entries.Count} entries");
+
+                var result = cfg.Entries
+                    .Where(x => x.GetName() == "CHARA_SCALE_INFO_LIST_BEG")
+                    .SelectMany(x => x.Children)
+                    .Select(x => x.ToClass<CharScale>())
+                    .ToArray();
+
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetCharascale] Returning {result.Length} objects");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetCharascale] Exception: {ex.Message}");
+                return new CharScale[0];
+            }
         }
 
         public void SaveCharascale(CharScale[] scales)
         {
-            // Similar logic...
+            if (scales == null)
+            {
+                throw new ArgumentNullException(nameof(scales));
+            }
+
+            var characterFolder = Game?.Directory?.GetFolderFromFullPath("data/res/character");
+            if (characterFolder == null)
+            {
+                throw new DirectoryNotFoundException("Character folder '/data/res/character' not found.");
+            }
+
+            string? latestScaleFile = characterFolder.Files.Keys
+                .Where(x => x.StartsWith("chara_scale", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x)
+                .FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(latestScaleFile))
+            {
+                throw new FileNotFoundException("No chara_scale file found under '/data/res/character'.");
+            }
+
+            byte[] sourceData = characterFolder.GetFileDataReadOnly(latestScaleFile);
+            var cfg = new CfgBin();
+            cfg.Open(sourceData);
+
+            var concrete = scales.Select(x => x as Charascale ?? new Charascale
+            {
+                BaseHash = x.BaseHash,
+                Scale1 = x.Scale1,
+                Scale2 = x.Scale2,
+                Scale3 = x.Scale3,
+                Scale4 = x.Scale4,
+                Scale5 = x.Scale5,
+                Scale6 = x.Scale6,
+                Scale7 = x.Scale7
+            }).ToArray();
+
+            cfg.ReplaceEntry("CHARA_SCALE_INFO_LIST_BEG", "CHARA_SCALE_INFO_", concrete);
+            byte[] savedData = cfg.Save();
+
+            var stream = characterFolder.GetFile(latestScaleFile);
+            if (stream == null)
+            {
+                throw new FileNotFoundException($"Failed to resolve stream for '{latestScaleFile}'.");
+            }
+
+            stream.ByteContent = savedData;
+
+            if (CurrentProject != null && CurrentProject.ChangesPath != null)
+            {
+                string relativePath = Path.Combine("data", "res", "character", latestScaleFile).Replace('\\', '/');
+                string targetPath = Path.Combine(CurrentProject.ChangesPath, relativePath);
+                string? targetDir = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrWhiteSpace(targetDir))
+                {
+                    Directory.CreateDirectory(targetDir);
+                }
+
+                File.WriteAllBytes(targetPath, savedData);
+            }
         }
 
         public ItemBase[] GetItems(string itemType)
@@ -896,12 +1189,811 @@ namespace ICN_T2.YokaiWatch.Games.YW2
 
         public BattleCommand[] GetBattleCommands()
         {
-            return new BattleCommand[0];
+            try
+            {
+                if (Game?.Directory == null)
+                {
+                    System.Diagnostics.Trace.WriteLine("[YW2.GetBattleCommands] Game directory is null.");
+                    return new BattleCommand[0];
+                }
+
+                byte[]? data = null;
+                string loadedPath = "";
+
+                // DFS Scanner (Legacy Behavior)
+                // Stops at the first folder that contains a battle_command file.
+                Action<VirtualDirectory> scanner = null;
+                scanner = (d) =>
+                {
+                    // Check for file in current folder
+                    var k = d.Files.Keys
+                        .Where(x => x.StartsWith("battle_command", StringComparison.OrdinalIgnoreCase) &&
+                                   !x.Contains("link", StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(x => x) // Legacy used Max(), so we take the last one alphabetically in this folder
+                        .FirstOrDefault();
+
+                    if (k != null)
+                    {
+                        var file = d.GetFile(k);
+                        if (file != null)
+                        {
+                            data = file.ByteContent ?? file.ReadWithoutCaching();
+                            loadedPath = d.Name + "/" + k;
+                            return; // Stop searching once found
+                        }
+                    }
+
+                    // Recurse into subfolders if not found yet
+                    // Note: VirtualDirectory.Folders values are the sub-directories.
+                    foreach (var s in d.Folders.Values)
+                    {
+                        if (data == null) scanner(s);
+                    }
+                };
+
+                scanner(Game.Directory);
+
+                if (data == null)
+                {
+                    System.Diagnostics.Trace.WriteLine("[YW2.GetBattleCommands] No battle_command file found.");
+                    return new BattleCommand[0];
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetBattleCommands] Loaded file: {loadedPath}");
+
+                CfgBin cfg = new CfgBin();
+                cfg.Open(data);
+
+                return cfg.Entries
+                    .Where(x => x.GetName() == "BATTLE_COMMAND_INFO_BEGIN")
+                    .SelectMany(x => x.Children)
+                    .Select(x => (BattleCommand)x.ToClass<Battlecommand>())
+                    .ToArray();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"[YW2.GetBattleCommands] Failed: {ex.Message}");
+                return new BattleCommand[0];
+            }
         }
 
-        public string[] GetMapWhoContainsEncounter() => new string[0];
-        public (Definitions.EncountTable[], Definitions.EncountSlot[]) GetMapEncounter(string mapName) => (new Definitions.EncountTable[0], new Definitions.EncountSlot[0]);
-        public void SaveMapEncounter(string mapName, Definitions.EncountTable[] encountTables, Definitions.EncountSlot[] encountCharas) { }
+        private sealed class EncounterFileContext
+        {
+            public VirtualDirectory ContainerFolder { get; set; } = null!;
+            public string EncounterFileName { get; set; } = "";
+            public bool IsPck { get; set; }
+            public string PckFileName { get; set; } = "";
+            public XPCK? PckArchive { get; set; }
+            public byte[] Data { get; set; } = Array.Empty<byte>();
+            public string SaveRelativePath { get; set; } = "";
+            public string MapKey { get; set; } = "";
+        }
+
+        private static readonly string[] EncounterRootCandidates = new[] { "data/res/map", "data/map" };
+
+        private void LogEncounter(string stage, string mapKey, string message)
+        {
+            string line = $"[Encounter][{stage}][{mapKey}] {message}";
+            System.Diagnostics.Debug.WriteLine(line);
+
+            try
+            {
+                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "encounter.log");
+                File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {line}{Environment.NewLine}");
+            }
+            catch
+            {
+                // Ignore file logging failures.
+            }
+        }
+
+        private static bool IsEncounterConfigFileName(string mapKey, string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return false;
+            }
+
+            string lower = fileName.ToLowerInvariant();
+            string mapLower = (mapKey ?? "").ToLowerInvariant();
+
+            if (lower.Contains("_enc_pos"))
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(mapLower) && lower.StartsWith(mapLower + "_enc_"))
+            {
+                return true;
+            }
+
+            if (mapLower == "common_enc" && lower.StartsWith("common_enc"))
+            {
+                return true;
+            }
+
+            if (mapLower == "yokaispot" && (lower.Contains("yokaispot") || lower.Contains("ys_yokai")))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static ICN_T2.Logic.Level5.Binary.Entry? FindEncounterSlotBeginEntry(CfgBin cfg)
+        {
+            var direct = cfg.Entries.FirstOrDefault(x => x.GetName() == "ENCOUNT_CHARA_BEGIN");
+            if (direct != null)
+            {
+                return direct;
+            }
+
+            var yokaiSpotNamed = cfg.Entries.FirstOrDefault(x =>
+                x.GetName().IndexOf("YS_YOKAI", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                x.GetName().IndexOf("YOKAISPOT", StringComparison.OrdinalIgnoreCase) >= 0);
+            if (yokaiSpotNamed != null)
+            {
+                return yokaiSpotNamed;
+            }
+
+            return cfg.Entries.FirstOrDefault(x =>
+                x.GetName().IndexOf("CHARA_BEGIN", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private static bool IsYokaiSpotSlotEntry(ICN_T2.Logic.Level5.Binary.Entry slotEntry, string mapKey)
+        {
+            if (slotEntry.GetName().IndexOf("YS_YOKAI", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                slotEntry.GetName().IndexOf("YOKAISPOT", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            if (mapKey.Equals("yokaispot", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return slotEntry.Children.Any(c => c.Variables.Count >= 9);
+        }
+
+        private static string ResolveEntryPrefix(ICN_T2.Logic.Level5.Binary.Entry beginEntry, string fallbackPrefix)
+        {
+            if (beginEntry.Children.Count > 0)
+            {
+                string childName = beginEntry.Children[0].GetName();
+                int end = childName.Length - 1;
+                while (end >= 0 && char.IsDigit(childName[end]))
+                {
+                    end--;
+                }
+
+                if (end + 1 < childName.Length)
+                {
+                    return childName.Substring(0, end + 1);
+                }
+            }
+
+            return fallbackPrefix;
+        }
+
+        private static void ValidateEncounterConfig(CfgBin cfg, string mapKey)
+        {
+            if (cfg.Entries == null || cfg.Entries.Count == 0)
+            {
+                throw new InvalidDataException("Encounter config is empty.");
+            }
+
+            var tableEntry = cfg.Entries.FirstOrDefault(x => x.GetName() == "ENCOUNT_TABLE_BEGIN");
+            if (tableEntry == null)
+            {
+                throw new InvalidDataException("Missing ENCOUNT_TABLE_BEGIN.");
+            }
+
+            var slotEntry = FindEncounterSlotBeginEntry(cfg);
+            if (slotEntry == null)
+            {
+                throw new InvalidDataException("Missing encounter slot begin entry.");
+            }
+
+            bool expectsYokaiSpot = mapKey.Equals("yokaispot", StringComparison.OrdinalIgnoreCase);
+            bool isYokaiSpot = IsYokaiSpotSlotEntry(slotEntry, mapKey);
+
+            if (expectsYokaiSpot && !isYokaiSpot)
+            {
+                throw new InvalidDataException("YokaiSpot schema expected but not found.");
+            }
+
+            if (isYokaiSpot && slotEntry.Children.Any(c => c.Variables.Count < 9))
+            {
+                throw new InvalidDataException("YokaiSpot entry has invalid variable count (expected 9).");
+            }
+        }
+
+        private void SaveEncounterToProject(string relativePath, byte[] data)
+        {
+            if (CurrentProject == null || string.IsNullOrWhiteSpace(CurrentProject.ChangesPath))
+            {
+                return;
+            }
+
+            string normalized = relativePath.Replace('\\', '/').TrimStart('/');
+            string targetPath = Path.Combine(CurrentProject.ChangesPath, normalized);
+            string? targetDir = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrEmpty(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
+
+            File.WriteAllBytes(targetPath, data);
+            System.Diagnostics.Debug.WriteLine($"[YW2] Encounter override saved: {targetPath}");
+        }
+
+        private bool TryResolveEncounterFile(string mapKey, out EncounterFileContext? context)
+        {
+            context = null;
+            if (string.IsNullOrWhiteSpace(mapKey))
+            {
+                LogEncounter("resolve", "(empty)", "Map key is empty.");
+                return false;
+            }
+
+            mapKey = mapKey.Trim();
+            LogEncounter("resolve", mapKey, $"start roots=[{string.Join(", ", EncounterRootCandidates)}]");
+
+            // Backward compatibility: explicit "x.pck/y.cfg.bin" path key.
+            if (mapKey.Contains(".pck/", StringComparison.OrdinalIgnoreCase))
+            {
+                string[] parts = mapKey.Split(new[] { ".pck/" }, StringSplitOptions.None);
+                if (parts.Length == 2)
+                {
+                    string pckPath = parts[0] + ".pck";
+                    string internalPath = parts[1];
+                    var pckStream = Game.Directory.GetFileStreamFromFullPath(pckPath.TrimStart('/'));
+                    if (pckStream != null)
+                    {
+                        byte[] pckData = pckStream.ByteContent ?? pckStream.ReadWithoutCaching();
+                        XPCK archive = new XPCK(pckData);
+                        var internalFile = archive.Directory.GetFile(internalPath);
+                        if (internalFile != null)
+                        {
+                            byte[] data = internalFile.ByteContent ?? internalFile.ReadWithoutCaching();
+                            string relPckPath = pckPath.TrimStart('/');
+                            string? folderPath = Path.GetDirectoryName(relPckPath)?.Replace('\\', '/');
+                            if (!string.IsNullOrEmpty(folderPath))
+                            {
+                                var container = Game.Directory.GetFolderFromFullPath(folderPath);
+                                if (container != null)
+                                {
+                                    context = new EncounterFileContext
+                                    {
+                                        ContainerFolder = container,
+                                        EncounterFileName = internalPath,
+                                        IsPck = true,
+                                        PckFileName = Path.GetFileName(relPckPath),
+                                        PckArchive = archive,
+                                        Data = data,
+                                        SaveRelativePath = relPckPath,
+                                        MapKey = mapKey
+                                    };
+                                    LogEncounter("resolve", mapKey, $"resolved explicit pck path '{relPckPath}' -> '{internalPath}'");
+                                    return true;
+                                }
+
+                                LogEncounter("resolve", mapKey, $"explicit pck path container folder missing: '{folderPath}'");
+                            }
+
+                            LogEncounter("resolve", mapKey, $"explicit pck path has invalid folder: '{relPckPath}'");
+                        }
+
+                        LogEncounter("resolve", mapKey, $"explicit pck path missing internal file '{internalPath}'");
+                    }
+
+                    LogEncounter("resolve", mapKey, $"explicit pck stream not found: '{pckPath}'");
+                }
+                else
+                {
+                    LogEncounter("resolve", mapKey, "explicit pck key format invalid.");
+                }
+            }
+
+            foreach (string root in EncounterRootCandidates)
+            {
+                var rootFolder = Game.Directory.GetFolderFromFullPath(root);
+                if (rootFolder == null)
+                {
+                    LogEncounter("resolve", mapKey, $"root not found: '{root}'");
+                    continue;
+                }
+
+                var mapFolder = rootFolder.GetFolder(mapKey);
+                if (mapFolder != null)
+                {
+                    string? directFile = mapFolder.Files.Keys
+                        .Where(f => IsEncounterConfigFileName(mapKey, f))
+                        .OrderByDescending(f => f)
+                        .FirstOrDefault();
+
+                    if (!string.IsNullOrEmpty(directFile))
+                    {
+                        context = new EncounterFileContext
+                        {
+                            ContainerFolder = mapFolder,
+                            EncounterFileName = directFile,
+                            IsPck = false,
+                            Data = mapFolder.GetFileDataReadOnly(directFile),
+                            SaveRelativePath = $"{root}/{mapKey}/{directFile}",
+                            MapKey = mapKey
+                        };
+                        LogEncounter("resolve", mapKey, $"resolved direct file '{root}/{mapKey}/{directFile}'");
+                        return true;
+                    }
+
+                    var pckNames = mapFolder.Files.Keys
+                        .Where(f => f.EndsWith(".pck", StringComparison.OrdinalIgnoreCase))
+                        .ToArray();
+
+                    if (pckNames.Length == 0)
+                    {
+                        LogEncounter("resolve", mapKey, $"no pck files in '{root}/{mapKey}'");
+                    }
+
+                    foreach (string pckName in pckNames)
+                    {
+                        try
+                        {
+                            byte[] pckData = mapFolder.GetFileDataReadOnly(pckName);
+                            XPCK archive = new XPCK(pckData);
+                            string? encounterFile = archive.Directory.Files.Keys
+                                .Where(f => IsEncounterConfigFileName(mapKey, f))
+                                .OrderByDescending(f => f)
+                                .FirstOrDefault();
+
+                            if (!string.IsNullOrEmpty(encounterFile))
+                            {
+                                var encounterSms = archive.Directory.GetFile(encounterFile);
+                                if (encounterSms != null)
+                                {
+                                    context = new EncounterFileContext
+                                    {
+                                        ContainerFolder = mapFolder,
+                                        EncounterFileName = encounterFile,
+                                        IsPck = true,
+                                        PckFileName = pckName,
+                                        PckArchive = archive,
+                                        Data = encounterSms.ByteContent ?? encounterSms.ReadWithoutCaching(),
+                                        SaveRelativePath = $"{root}/{mapKey}/{pckName}",
+                                        MapKey = mapKey
+                                    };
+                                    LogEncounter("resolve", mapKey, $"resolved pck file '{root}/{mapKey}/{pckName}' -> '{encounterFile}'");
+                                    return true;
+                                }
+                            }
+                            else
+                            {
+                                LogEncounter("resolve", mapKey, $"pck '{pckName}' has no matching encounter cfg");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LogEncounter("resolve", mapKey, $"Failed reading pck '{pckName}': {ex.Message}");
+                        }
+                    }
+                }
+                else
+                {
+                    LogEncounter("resolve", mapKey, $"map folder not found under root '{root}'");
+                }
+
+                string? rootFile = rootFolder.Files.Keys
+                    .Where(f => IsEncounterConfigFileName(mapKey, f))
+                    .OrderByDescending(f => f)
+                    .FirstOrDefault();
+
+                if (!string.IsNullOrEmpty(rootFile))
+                {
+                    context = new EncounterFileContext
+                    {
+                        ContainerFolder = rootFolder,
+                        EncounterFileName = rootFile,
+                        IsPck = false,
+                        Data = rootFolder.GetFileDataReadOnly(rootFile),
+                        SaveRelativePath = $"{root}/{rootFile}",
+                        MapKey = mapKey
+                    };
+                    LogEncounter("resolve", mapKey, $"resolved root-level file '{root}/{rootFile}'");
+                    return true;
+                }
+            }
+
+            LogEncounter("resolve", mapKey, "encounter config not found in any candidate location.");
+            return false;
+        }
+
+        public string[] GetMapWhoContainsEncounter()
+        {
+            var maps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string root in EncounterRootCandidates)
+            {
+                var rootFolder = Game.Directory.GetFolderFromFullPath(root);
+                if (rootFolder == null)
+                {
+                    continue;
+                }
+
+                foreach (var folder in rootFolder.Folders.Values)
+                {
+                    bool hasDirect = folder.Files.Keys.Any(f => IsEncounterConfigFileName(folder.Name, f));
+                    bool hasPckEncounter = false;
+
+                    if (!hasDirect)
+                    {
+                        foreach (string pckName in folder.Files.Keys.Where(f => f.EndsWith(".pck", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            try
+                            {
+                                byte[] pckData = folder.GetFileDataReadOnly(pckName);
+                                XPCK archive = new XPCK(pckData);
+                                if (archive.Directory.Files.Keys.Any(f => IsEncounterConfigFileName(folder.Name, f)))
+                                {
+                                    hasPckEncounter = true;
+                                    break;
+                                }
+                            }
+                            catch
+                            {
+                                // Keep scanning other files.
+                            }
+                        }
+                    }
+
+                    if (hasDirect || hasPckEncounter)
+                    {
+                        maps.Add(folder.Name);
+                    }
+                }
+
+                foreach (string fileName in rootFolder.Files.Keys)
+                {
+                    if (fileName.IndexOf("yokaispot", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        maps.Add("yokaispot");
+                        continue;
+                    }
+
+                    int idx = fileName.IndexOf("_enc_", StringComparison.OrdinalIgnoreCase);
+                    if (idx > 0)
+                    {
+                        maps.Add(fileName.Substring(0, idx));
+                    }
+                }
+            }
+
+            return maps.OrderBy(x => x).ToArray();
+        }
+
+        public (Definitions.EncountTable[], Definitions.EncountSlot[]) GetMapEncounter(string mapName)
+        {
+            try
+            {
+                LogEncounter("load-start", mapName, "loading encounter");
+
+                if (!TryResolveEncounterFile(mapName, out var ctx) || ctx == null)
+                {
+                    throw new FileNotFoundException(
+                        $"Encounter config not found for map '{mapName}'. roots=[{string.Join(", ", EncounterRootCandidates)}]");
+                }
+
+                LogEncounter("load-resolve", mapName, ctx.IsPck
+                    ? $"using pck '{ctx.PckFileName}' file '{ctx.EncounterFileName}'"
+                    : $"using file '{ctx.EncounterFileName}'");
+
+                var cfg = new CfgBin();
+                cfg.Open(ctx.Data);
+                ValidateEncounterConfig(cfg, mapName);
+
+                var tableBegin = cfg.Entries.First(x => x.GetName() == "ENCOUNT_TABLE_BEGIN");
+                var slotBegin = FindEncounterSlotBeginEntry(cfg)!;
+                bool isYokaiSpot = IsYokaiSpotSlotEntry(slotBegin, mapName);
+
+                var tables = tableBegin.Children
+                    .Select(x => (Definitions.EncountTable)x.ToClass<YW2Logic.EncountTable>())
+                    .ToArray();
+
+                Definitions.EncountSlot[] slots = isYokaiSpot
+                    ? slotBegin.Children.Select(x => (Definitions.EncountSlot)x.ToClass<YW2Logic.YokaiSpotChara>()).ToArray()
+                    : slotBegin.Children.Select(x => (Definitions.EncountSlot)x.ToClass<YW2Logic.EncountChara>()).ToArray();
+
+                foreach (var table in tables)
+                {
+                    if (table.EncountOffsets == null || table.EncountOffsets.Length == 0)
+                    {
+                        table.EncountOffsets = new int[6];
+                    }
+
+                    for (int i = 0; i < table.EncountOffsets.Length; i++)
+                    {
+                        if (table.EncountOffsets[i] < -1 || table.EncountOffsets[i] >= slots.Length)
+                        {
+                            table.EncountOffsets[i] = -1;
+                        }
+                    }
+                }
+
+                LogEncounter("load-finish", mapName, $"tables={tables.Length}, slots={slots.Length}, yokaispot={isYokaiSpot}");
+                return (tables, slots);
+            }
+            catch (Exception ex)
+            {
+                LogEncounter("load-error", mapName, $"{ex.GetType().Name}: {ex.Message}");
+                return (Array.Empty<Definitions.EncountTable>(), Array.Empty<Definitions.EncountSlot>());
+            }
+        }
+
+        private (Definitions.EncountTable[], Definitions.EncountSlot[]) ParsePTree(byte[] data)
+        {
+            var cfg = new CfgBin();
+            cfg.Open(data);
+
+            var tables = new List<Definitions.EncountTable>();
+            var slots = new List<Definitions.EncountSlot>();
+
+            // Find the root PTREE entry
+            var root = cfg.Entries.FirstOrDefault(x => x.GetName() == "PTREE");
+            if (root == null) return (new Definitions.EncountTable[0], new Definitions.EncountSlot[0]);
+
+            // Strategy: Flatten ALL values (Ints and Hash of Strings) from the PTREE structure
+            var allValues = new List<int>();
+            Action<ICN_T2.Logic.Level5.Binary.Entry> collectValues = null;
+            collectValues = (e) =>
+            {
+                if (e.GetName().Contains("PTVAL"))
+                {
+                    foreach (var v in e.Variables)
+                    {
+                        if (v.Value is int i)
+                        {
+                            allValues.Add(i);
+                        }
+                        else if (v.Value is long l)
+                        {
+                            allValues.Add((int)l);
+                        }
+                        else if (v.Value is short s)
+                        {
+                            allValues.Add((int)s);
+                        }
+                        else if (v.Value is byte b)
+                        {
+                            allValues.Add((int)b);
+                        }
+                        else if (v.Value is string str)
+                        {
+                            // Convert string to CRC32 hash (assumed to be ParamHash/NameHash)
+                            if (!string.IsNullOrEmpty(str))
+                            {
+                                allValues.Add((int)ICN_T2.Tools.Crc32.Compute(System.Text.Encoding.GetEncoding("Shift-JIS").GetBytes(str)));
+                            }
+                        }
+                        else if (v.Value is ICN_T2.Logic.Level5.Binary.OffsetTextPair pair)
+                        {
+                            // Convert OffsetTextPair content to CRC32 hash
+                            if (!string.IsNullOrEmpty(pair.Text))
+                            {
+                                allValues.Add((int)ICN_T2.Tools.Crc32.Compute(System.Text.Encoding.GetEncoding("Shift-JIS").GetBytes(pair.Text)));
+                            }
+                        }
+                    }
+                }
+                foreach (var c in e.Children) collectValues(c);
+            };
+
+            collectValues(root);
+
+            System.Diagnostics.Debug.WriteLine($"[YW2] Flattened PTREE values (mixed): {allValues.Count}");
+            if (allValues.Count > 0 && allValues.Count < 50)
+            {
+                System.Diagnostics.Debug.WriteLine($"[YW2] Values (mixed): {string.Join(", ", allValues)}");
+            }
+
+            if (allValues.Count == 0) return (new Definitions.EncountTable[0], new Definitions.EncountSlot[0]);
+
+            // Create ONE dummy table
+            var table = new YW2Logic.EncountTable();
+            table.EncountConfigHash = allValues.Count > 0 ? allValues[0] : 0;
+            tables.Add(table);
+
+            // Heuristic Parsing with mixed values (Ints and Hashes)
+
+            // Expected Pattern:
+            // [EncountHash (StringHash)], [Unk], [Level (Int)], ...
+
+            // Let's assume the Hash is large (CRC32 usually represents big numbers as int) or string-derived.
+
+            for (int i = 0; i < allValues.Count - 2; i++)
+            {
+                int val1 = allValues[i];   // Potential Hash
+                int val2 = allValues[i + 1]; // Potential Level or Unk
+                int val3 = allValues[i + 2]; // Potential Level?
+
+                // Identify if val1 looks like a Hash (non-small integer, often negative in signed int)
+                // And check if val2 or val3 is a reasonable Level (1-99).
+
+                // Usually Hash is not small (e.g. > 1000 or < -1000).
+                // Level is 1-99.
+
+                bool isHash = (val1 > 1000 || val1 < -1000);
+                bool isLevel2 = (val2 > 0 && val2 <= 99);
+                bool isLevel3 = (val3 > 0 && val3 <= 99);
+
+                if (isHash && (isLevel2 || isLevel3))
+                {
+                    var slot = new YW2Logic.EncountChara();
+                    slot.ParamHash = val1;
+                    slot.Level = isLevel2 ? val2 : val3;
+
+                    int offset = i * 0x10;
+                    slot.Offset = offset;
+
+                    // Link to table
+                    bool linked = false;
+                    for (int k = 0; k < table.EncountOffsets.Length; k++)
+                    {
+                        if (table.EncountOffsets[k] == 0)
+                        {
+                            table.EncountOffsets[k] = offset;
+                            linked = true;
+                            break;
+                        }
+                    }
+                    if (!linked)
+                    {
+                        // Expand if needed (though fixed size 6 limit in logic)
+                        // Just overwrite last one cyclicly to show valid linkage for testing
+                        table.EncountOffsets[table.EncountOffsets.Length - 1] = offset;
+                    }
+
+                    slots.Add(slot);
+
+                    // Advance stride
+                    // If we matched Hash, Level... it's likely part of a block.
+                    i += isLevel2 ? 1 : 2;
+                }
+            }
+
+            return (tables.ToArray(), slots.ToArray());
+        }
+
+        private void LogEntryRecursive(ICN_T2.Logic.Level5.Binary.Entry entry, string indent)
+        {
+            if (indent.Length > 100) return; // Prevent too deep recursion logging
+
+            string extraInfo = "";
+            if (entry.GetName().Contains("PTVAL"))
+            {
+                extraInfo = " Vars: " + string.Join(", ", entry.Variables.Select(v => v.Value));
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[YW2] {indent}Entry: {entry.GetName()}, Children: {entry.Children.Count}{extraInfo}");
+            foreach (var child in entry.Children)
+            {
+                LogEntryRecursive(child, indent + "  ");
+            }
+        }
+
+        public void SaveMapEncounter(string mapName, Definitions.EncountTable[] encountTables, Definitions.EncountSlot[] encountCharas)
+        {
+            try
+            {
+                LogEncounter("save-start", mapName, $"tables={encountTables?.Length ?? 0}, slots={encountCharas?.Length ?? 0}");
+
+                if (!TryResolveEncounterFile(mapName, out var ctx) || ctx == null)
+                {
+                    throw new FileNotFoundException(
+                        $"Encounter config not found for map '{mapName}'. roots=[{string.Join(", ", EncounterRootCandidates)}]");
+                }
+
+                LogEncounter("save-resolve", mapName, ctx.IsPck
+                    ? $"using pck '{ctx.PckFileName}' file '{ctx.EncounterFileName}'"
+                    : $"using file '{ctx.EncounterFileName}'");
+
+                var cfg = new CfgBin();
+                cfg.Open(ctx.Data);
+                ValidateEncounterConfig(cfg, mapName);
+
+                var tableBegin = cfg.Entries.First(x => x.GetName() == "ENCOUNT_TABLE_BEGIN");
+                var slotBegin = FindEncounterSlotBeginEntry(cfg)!;
+                bool isYokaiSpot = IsYokaiSpotSlotEntry(slotBegin, mapName);
+
+                var concreteTables = (encountTables ?? Array.Empty<Definitions.EncountTable>())
+                    .Select(t => new YW2Logic.EncountTable
+                    {
+                        EncountConfigHash = t?.EncountConfigHash ?? 0,
+                        EncountOffsets = t?.EncountOffsets ?? new int[6]
+                    })
+                    .ToArray();
+
+                cfg.ReplaceEntry(tableBegin.GetName(), ResolveEntryPrefix(tableBegin, "ENCOUNT_TABLE_INFO_"), concreteTables);
+
+                if (isYokaiSpot)
+                {
+                    var concreteSlots = (encountCharas ?? Array.Empty<Definitions.EncountSlot>())
+                        .Select(s =>
+                        {
+                            if (s is YW2Logic.YokaiSpotChara ys) return ys;
+                            return new YW2Logic.YokaiSpotChara
+                            {
+                                ParamHash = s?.ParamHash ?? 0,
+                                Level = s?.Level ?? 0,
+                                Unk3 = s?.MaxLevel ?? 0,
+                                Unk8 = s?.Weight ?? 0
+                            };
+                        })
+                        .ToArray();
+
+                    cfg.ReplaceEntry(slotBegin.GetName(), ResolveEntryPrefix(slotBegin, "YS_YOKAI_INFO_"), concreteSlots);
+                }
+                else
+                {
+                    var concreteSlots = (encountCharas ?? Array.Empty<Definitions.EncountSlot>())
+                        .Select(s =>
+                        {
+                            if (s is YW2Logic.EncountChara ec) return ec;
+                            return new YW2Logic.EncountChara
+                            {
+                                ParamHash = s?.ParamHash ?? 0,
+                                Level = s?.Level ?? 0,
+                                Unk1 = s?.MaxLevel ?? 0,
+                                Unk2 = s?.Weight ?? 0
+                            };
+                        })
+                        .ToArray();
+
+                    cfg.ReplaceEntry(slotBegin.GetName(), ResolveEntryPrefix(slotBegin, "ENCOUNT_CHARA_INFO_"), concreteSlots);
+                }
+
+                byte[] newData = cfg.Save();
+                if (ctx.IsPck)
+                {
+                    var encounterFile = ctx.PckArchive!.Directory.GetFile(ctx.EncounterFileName);
+                    if (encounterFile == null)
+                    {
+                        throw new InvalidDataException($"Encounter file '{ctx.EncounterFileName}' missing in pck.");
+                    }
+
+                    encounterFile.ByteContent = newData;
+                    byte[] newPckData = ctx.PckArchive.Save();
+
+                    var pckStream = ctx.ContainerFolder.GetFile(ctx.PckFileName);
+                    if (pckStream == null)
+                    {
+                        throw new FileNotFoundException($"PCK file '{ctx.PckFileName}' not found in container.");
+                    }
+
+                    pckStream.ByteContent = newPckData;
+                    SaveEncounterToProject(ctx.SaveRelativePath, newPckData);
+                }
+                else
+                {
+                    var target = ctx.ContainerFolder.GetFile(ctx.EncounterFileName);
+                    if (target == null)
+                    {
+                        throw new FileNotFoundException($"Encounter file '{ctx.EncounterFileName}' not found.");
+                    }
+
+                    target.ByteContent = newData;
+                    SaveEncounterToProject(ctx.SaveRelativePath, newData);
+                }
+
+                LogEncounter("save-finish", mapName, "save complete");
+            }
+            catch (Exception ex)
+            {
+                LogEncounter("save-error", mapName, $"{ex.GetType().Name}: {ex.Message}");
+                throw;
+            }
+        }
+
         public (ShopConfig[], ShopConfig[]) GetShop(string shopName) => (new ShopConfig[0], new ShopConfig[0]);
         public void SaveShop(string shopName, ShopConfig[] shopConfigs, ShopConfig[] shopValidConditions) { }
 

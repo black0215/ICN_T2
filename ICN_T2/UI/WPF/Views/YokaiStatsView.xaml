@@ -1,108 +1,57 @@
-<UserControl x:Class="ICN_T2.UI.WPF.Views.YokaiStatsView"
+﻿<UserControl x:Class="ICN_T2.UI.WPF.Views.YokaiStatsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:ICN_T2.UI.WPF.Views"
-             xmlns:vm="clr-namespace:ICN_T2.UI.WPF.ViewModels"
-             mc:Ignorable="d" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:conv="clr-namespace:ICN_T2.UI.WPF.Converters"
+             mc:Ignorable="d"
              d:DesignHeight="720" d:DesignWidth="1080"
-             Foreground="White" FontFamily="Malgun Gothic">
+             Foreground="White" FontFamily="Malgun Gothic"
+             xmlns:controls="clr-namespace:ICN_T2.UI.WPF.Views.Controls">
 
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../Themes/PuniPuniTheme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <conv:NullToVisibilityConverter x:Key="NullToVisibility"/>
+            <conv:StringEmptyToVisibilityConverter x:Key="StringEmptyToVisibility"/>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid x:Name="RootGrid">
+    <Grid x:Name="RootGrid" SnapsToDevicePixels="True" UseLayoutRounding="True">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="300" MaxWidth="400"/> <!-- List Panel -->
-            <ColumnDefinition Width="6"/> <!-- Spacing -->
-            <ColumnDefinition Width="*"/> <!-- Detail Panel -->
+            <ColumnDefinition Width="280" MaxWidth="400"/>
+            <ColumnDefinition Width="6"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Left Panel: Search & List (iPhone Settings Style) -->
-        <Border Grid.Column="0"
-                Background="#50FFFFFF"
-                BorderBrush="#40FFFFFF"
-                BorderThickness="1"
-                CornerRadius="15"
-                Padding="15">
-            <Border.Effect>
-                <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="10" ShadowDepth="3"/>
-            </Border.Effect>
-
+        <Border Grid.Column="0" CornerRadius="15" Tag="ToolPanelBackdropGlass" IsHitTestVisible="False"/>
+        <Border Grid.Column="0" Background="#26FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="15" Padding="15">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Header -->
-                    <RowDefinition Height="Auto"/> <!-- Search -->
-                    <RowDefinition Height="*"/> <!-- List -->
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="요괴 능력치" FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Visibility="Hidden"/>
 
-                <TextBlock Grid.Row="0" Text="요괴 능력치"
-                           FontSize="24" FontWeight="Bold"
-                           Foreground="White" Margin="0,0,0,15">
-                    <TextBlock.Effect>
-                        <DropShadowEffect BlurRadius="4" ShadowDepth="2" Opacity="0.5"/>
-                    </TextBlock.Effect>
-                </TextBlock>
-
-                <!-- Rounded Search Box -->
-                <Border Grid.Row="1" Margin="0,0,0,15" Height="36"
-                        Background="#30000000" CornerRadius="18"
-                        BorderBrush="#40FFFFFF" BorderThickness="1">
+                <Border Grid.Row="1" Margin="0,0,0,15" Height="36" Style="{StaticResource IosSearchFieldStyle}">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="🔍" FontFamily="Segoe UI Emoji" VerticalAlignment="Center" Margin="12,0,5,0" Opacity="0.7"/>
-                        <TextBox Grid.Column="1"
-                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                 Background="Transparent" BorderThickness="0"
-                                 Foreground="White" FontSize="14"
-                                 VerticalContentAlignment="Center"
-                                 Padding="0,0,10,0"/>
-                        <TextBlock Grid.Column="1" Text="Search" IsHitTestVisible="False"
-                                   VerticalAlignment="Center" Foreground="#80FFFFFF"
-                                   Visibility="{Binding SearchText, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverted}"
-                                   Margin="2,0,0,0"/>
+                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="White" FontSize="14" VerticalContentAlignment="Center" Padding="12,0,10,0"/>
+                        <TextBlock Text="寃??.." IsHitTestVisible="False" VerticalAlignment="Center" Foreground="#80FFFFFF" Visibility="{Binding SearchText, Converter={StaticResource StringEmptyToVisibility}}" Margin="14,0,0,0"/>
                     </Grid>
                 </Border>
 
-                <!-- List -->
-                <ListBox Grid.Row="2"
-                         ItemsSource="{Binding FilteredList}"
-                         SelectedItem="{Binding SelectedStats}"
-                         Background="Transparent" BorderThickness="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox Grid.Row="2" ItemsSource="{Binding FilteredList}" SelectedItem="{Binding SelectedStats}" 
+                         Background="Transparent" BorderThickness="0" 
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                     <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Background" Value="Transparent"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                            <Setter Property="Margin" Value="0,2"/>
-                            <Setter Property="Padding" Value="10,8"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border Background="{TemplateBinding Background}"
-                                                CornerRadius="10"
-                                                Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource IosListItemStyle}">
                             <Style.Triggers>
                                 <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="#60007AFF"/> <!-- iOS Blue-ish Selection -->
-                                </Trigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#30FFFFFF"/>
+                                    <Setter Property="Background" Value="#7A0A84FF"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -115,11 +64,9 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                
-                                <!-- Icon -->
-                                <Image Grid.Column="0" Source="{Binding Icon}" Width="40" Height="40" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                
-                                <!-- Text Info -->
+
+                                <Image Grid.Column="0" Source="{Binding Icon}" Width="40" Height="40" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextTrimming="CharacterEllipsis"/>
                                     <StackPanel Orientation="Horizontal" Opacity="0.7">
@@ -129,8 +76,7 @@
                                     </StackPanel>
                                 </StackPanel>
 
-                                <!-- Chevron -->
-                                <TextBlock Grid.Column="2" Text="›" FontSize="18" Opacity="0.5" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text=">" FontSize="18" Opacity="0.5" VerticalAlignment="Center" Margin="5,0,0,0"/>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -138,61 +84,128 @@
             </Grid>
         </Border>
 
-        <!-- Right Panel: Detail (Win11/iPhone Card Style) -->
-        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0"
-                      Visibility="{Binding SelectedStats, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Border Grid.Column="2" CornerRadius="15" Tag="ToolPanelBackdropGlass" IsHitTestVisible="False" Visibility="{Binding SelectedStats, Converter={StaticResource NullToVisibility}}"/>
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0" Visibility="{Binding SelectedStats, Converter={StaticResource NullToVisibility}}">
             <StackPanel>
-                <!-- Card Style Helper -->
                 <StackPanel.Resources>
                     <Style TargetType="Border" x:Key="CardStyle">
-                        <Setter Property="Background" Value="#40FFFFFF"/>
+                        <Setter Property="Background" Value="#80101015"/>
                         <Setter Property="BorderBrush" Value="#30FFFFFF"/>
                         <Setter Property="BorderThickness" Value="1"/>
                         <Setter Property="CornerRadius" Value="12"/>
                         <Setter Property="Padding" Value="15"/>
                         <Setter Property="Margin" Value="0,0,0,15"/>
+                        <Setter Property="Tag" Value="ToolGlassPanel"/>
                     </Style>
                     <Style TargetType="TextBlock" x:Key="CardHeaderStyle">
-                        <Setter Property="FontSize" Value="16"/>
+                        <Setter Property="FontSize" Value="20"/>
                         <Setter Property="FontWeight" Value="SemiBold"/>
-                        <Setter Property="Margin" Value="0,0,0,10"/>
-                        <Setter Property="Opacity" Value="0.9"/>
+                        <Setter Property="Margin" Value="0,0,0,14"/>
+                        <Setter Property="Opacity" Value="1.0"/>
+                        <Setter Property="Foreground" Value="#E0E0E0"/>
                     </Style>
+
+                    <SolidColorBrush x:Key="SkillBorderGradient" Color="#FF0B111D"/>
+
                     <Style TargetType="TextBox" x:Key="InputStyle">
-                        <Setter Property="Background" Value="#20000000"/>
-                        <Setter Property="Foreground" Value="White"/>
-                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Background" Value="#25000000"/>
+                        <Setter Property="Foreground" Value="#E0E0E0"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="BorderBrush" Value="#40FFFFFF"/>
                         <Setter Property="Padding" Value="8,4"/>
-                        <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="FontSize" Value="16"/>
                         <Setter Property="FontFamily" Value="Consolas"/>
                         <Setter Property="VerticalContentAlignment" Value="Center"/>
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="TextBox">
-                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                        <ScrollViewer x:Name="PART_ContentHost"/>
+                                    <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" SnapsToDevicePixels="True" CornerRadius="8">
+                                        <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
                                     </Border>
                                 </ControlTemplate>
                             </Setter.Value>
                         </Setter>
                     </Style>
+                    <Style TargetType="ComboBox" x:Key="ComboInputStyle">
+                        <Setter Property="Background" Value="#20000000"/>
+                        <Setter Property="Foreground" Value="#E0E0E0"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="8,2"/>
+                        <Setter Property="FontSize" Value="16"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    </Style>
+                    <Style TargetType="TextBlock" x:Key="StatLabelStyle">
+                        <Setter Property="Foreground" Value="{StaticResource SkillBorderGradient}"/>
+                        <Setter Property="FontFamily" Value="Line Seed Sans KR Regular"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Margin" Value="0,0,8,6"/>
+                        <Setter Property="FontSize" Value="14"/>
+                    </Style>
+
+                    <Style TargetType="TextBlock" x:Key="AttributeLabelStyle">
+                        <Setter Property="Foreground" Value="#B0B0B0"/>
+                        <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="FontFamily" Value="Line Seed Sans KR Regular"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Margin" Value="0,0,10,0"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </Style>
+
+                    <Style TargetType="Border" x:Key="AttributeCardStyle">
+                        <Setter Property="Background" Value="#92101015"/>
+                        <Setter Property="CornerRadius" Value="10"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                        <Setter Property="Margin" Value="4"/>
+                        <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                    </Style>
+
+                    <Style TargetType="TextBox" x:Key="SubInputStyle" BasedOn="{StaticResource InputStyle}">
+                        <Setter Property="Padding" Value="8,1"/>
+                        <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="Foreground" Value="#B0B0B0"/>
+                    </Style>
+
+                    <Style TargetType="TextBlock" x:Key="HashTextStyle">
+                        <Setter Property="FontFamily" Value="Consolas"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="Opacity" Value="0.6"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Foreground" Value="#CCCCCC"/>
+                    </Style>
+                    <Style TargetType="TextBlock" x:Key="QuotePreviewStyle">
+                        <Setter Property="TextWrapping" Value="Wrap"/>
+                        <Setter Property="Opacity" Value="0.9"/>
+                        <Setter Property="Margin" Value="0,4,0,8"/>
+                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="Background" Value="#16000000"/>
+                        <Setter Property="Foreground" Value="#E0E0E0"/>
+                        <Setter Property="FontSize" Value="14"/>
+                    </Style>
                 </StackPanel.Resources>
 
-                <!-- Detail Header -->
-                <Border Background="#50FFFFFF" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="15" Padding="20" Margin="0,0,0,15">
+
+
+                <Border Background="#50FFFFFF" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="15" Padding="20" Margin="0,0,0,15" Tag="ToolGlassPanel">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        
+
                         <Border Grid.Column="0" Width="100" Height="100" CornerRadius="20" Background="#30000000" Margin="0,0,20,0">
                             <Image Source="{Binding SelectedStats.Icon}" Stretch="Uniform" Margin="10" RenderOptions.BitmapScalingMode="HighQuality"/>
                         </Border>
-                        
+
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding SelectedStats.Name}" FontSize="32" FontWeight="Bold"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0" Opacity="0.8">
+                            <TextBlock Text="{Binding SelectedStats.Name}" 
+                                FontSize="28" FontWeight="Bold" FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic"
+                                Background="Transparent" Foreground="#1F1F1F"
+                                VerticalAlignment="Center"
+                                Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Opacity="0.85">
+                                <Image Source="{Binding SelectedStats.RankIcon}" Width="18" Height="18" Margin="0,0,6,0"/>
+                                <Image Source="{Binding SelectedStats.TribeIcon}" Width="18" Height="18" Margin="0,0,10,0"/>
                                 <TextBlock Text="BaseHash: "/>
                                 <TextBlock Text="{Binding SelectedStats.BaseHash, StringFormat='X8'}" FontFamily="Consolas" FontWeight="Bold"/>
                                 <TextBlock Text=" | ParamHash: " Margin="10,0,0,0"/>
@@ -202,206 +215,343 @@
                     </Grid>
                 </Border>
 
-                <!-- Tabs (Segmented Control Visual) -->
                 <Border Background="#30000000" CornerRadius="10" Padding="4" Margin="0,0,0,15" HorizontalAlignment="Left">
                     <StackPanel Orientation="Horizontal">
-                        <RadioButton Content="Stats" Style="{StaticResource PuniTabButtonStyle}" IsChecked="True"/>
-                        <RadioButton Content="Attributes" Style="{StaticResource PuniTabButtonStyle}" Checked="RadioButton_Checked"/>
-                        <RadioButton Content="Drops" Style="{StaticResource PuniTabButtonStyle}"/>
+                        <RadioButton Content="능력치" Tag="Stats" Style="{StaticResource IosSegmentedRadioStyle}" IsChecked="True" Checked="RadioButton_Checked"/>
+                        <RadioButton Content="기술" Tag="Tech" Style="{StaticResource IosSegmentedRadioStyle}" Checked="RadioButton_Checked"/>
+                        <RadioButton Content="대사" Tag="Quotes" Style="{StaticResource IosSegmentedRadioStyle}" Checked="RadioButton_Checked"/>
                     </StackPanel>
                 </Border>
-
-                <!-- Stats Card -->
-                <Border Style="{StaticResource CardStyle}">
+                <Border x:Name="StatsCard" Style="{StaticResource CardStyle}" Visibility="Collapsed">
                     <StackPanel>
-                        <TextBlock Text="Base Stats (Min / Max)" Style="{StaticResource CardHeaderStyle}"/>
-                        <Grid>
+                        <TextBlock Text="?λ젰移?/ ?깆옣 / ?쒕엻" Style="{StaticResource CardHeaderStyle}"
+                            FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic"/>
+
+                        <TextBlock Text="?듭떖 ?λ젰移?(理쒖냼 / 理쒕?)" FontWeight="SemiBold" Margin="0,0,0,10"
+                                   FontFamily="G留덉폆 ?곗뒪 TTF, Malgun Gothic" FontSize="16" Foreground="#E0E0E0"/>
+                        <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="10"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            
-                            <!-- HP -->
-                            <Grid Grid.Column="0" Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="HP" VerticalAlignment="Center" FontWeight="Bold"/>
-                                <TextBox Grid.Column="1" Text="{Binding SelectedStats.MinHP}" Style="{StaticResource InputStyle}" Margin="0,0,4,0"/>
-                                <TextBox Grid.Column="2" Text="{Binding SelectedStats.MaxHP}" Style="{StaticResource InputStyle}"/>
-                            </Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                            <!-- Strength -->
-                            <Grid Grid.Column="1" Margin="0,0,0,8" Grid.ColumnSpan="2">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Strength" VerticalAlignment="Center" FontWeight="Bold"/>
-                                <TextBox Grid.Column="1" Text="{Binding SelectedStats.MinStrength}" Style="{StaticResource InputStyle}" Margin="0,0,4,0"/>
-                                <TextBox Grid.Column="2" Text="{Binding SelectedStats.MaxStrength}" Style="{StaticResource InputStyle}"/>
-                            </Grid>
+                            <TextBlock Grid.Row="0" Text="HP" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedStats.MinHP}" Style="{StaticResource InputStyle}" Margin="0,0,6,6"/>
+                            <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding SelectedStats.MaxHP}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="1" Text="??" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedStats.MinStrength}" Style="{StaticResource InputStyle}" Margin="0,0,6,6"/>
+                            <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding SelectedStats.MaxStrength}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="2" Text="?뺤떊??" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedStats.MinSpirit}" Style="{StaticResource InputStyle}" Margin="0,0,6,6"/>
+                            <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding SelectedStats.MaxSpirit}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="3" Text="諛⑹뼱??" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SelectedStats.MinDefense}" Style="{StaticResource InputStyle}" Margin="0,0,6,6"/>
+                            <TextBox Grid.Row="3" Grid.Column="2" Text="{Binding SelectedStats.MaxDefense}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="4" Text="?띾룄" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"  Margin="0,0,8,0"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding SelectedStats.MinSpeed}" Style="{StaticResource InputStyle}" Margin="0,0,6,0"/>
+                            <TextBox Grid.Row="4" Grid.Column="2" Text="{Binding SelectedStats.MaxSpeed}" Style="{StaticResource InputStyle}"/>
                         </Grid>
-                        <Grid>
+
+                        <TextBlock Text="?깆옣 / 蹂댁긽 / ?λ퉬" FontWeight="SemiBold" Margin="0,0,0,10"
+                                   FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic" FontSize="20" Foreground="#E0E0E0"/>
+                        <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="170"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                            <!-- Spirit -->
-                            <Grid Grid.Column="0" Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Spirit" VerticalAlignment="Center" FontWeight="Bold"/>
-                                <TextBox Grid.Column="1" Text="{Binding SelectedStats.MinSpirit}" Style="{StaticResource InputStyle}" Margin="0,0,4,0"/>
-                                <TextBox Grid.Column="2" Text="{Binding SelectedStats.MaxSpirit}" Style="{StaticResource InputStyle}"/>
-                            </Grid>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="?λ퉬 ?щ’" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedStats.EquipmentSlotsAmount}" Style="{StaticResource SubInputStyle}" Margin="0,0,10,6"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Favorite Donut(紐⑤쫫?덀뀉)" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding SelectedStats.FavoriteDonut}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6"/>
 
-                            <!-- Defense -->
-                            <Grid Grid.Column="1" Margin="0,0,0,8" Grid.ColumnSpan="2">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Defense" VerticalAlignment="Center" FontWeight="Bold"/>
-                                <TextBox Grid.Column="1" Text="{Binding SelectedStats.MinDefense}" Style="{StaticResource InputStyle}" Margin="0,0,4,0"/>
-                                <TextBox Grid.Column="2" Text="{Binding SelectedStats.MaxDefense}" Style="{StaticResource InputStyle}"/>
-                            </Grid>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="??" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedStats.Money}" Style="{StaticResource SubInputStyle}" Margin="0,0,10,6"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="寃쏀뿕移?" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding SelectedStats.Experience}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="?깆옣 ?붽뎄??" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedStats.ExperienceCurve}" Style="{StaticResource SubInputStyle}" Margin="0,0,10,0"/>
                         </Grid>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
 
-                            <!-- Speed -->
-                            <Grid Grid.Column="0" Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Speed" VerticalAlignment="Center" FontWeight="Bold"/>
-                                <TextBox Grid.Column="1" Text="{Binding SelectedStats.MinSpeed}" Style="{StaticResource InputStyle}" Margin="0,0,4,0"/>
-                                <TextBox Grid.Column="2" Text="{Binding SelectedStats.MaxSpeed}" Style="{StaticResource InputStyle}"/>
-                            </Grid>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- Attributes Card -->
-                <Border Style="{StaticResource CardStyle}">
-                    <StackPanel>
-                        <TextBlock Text="Elemental Resistance (Damage Multiplier)" Style="{StaticResource CardHeaderStyle}"/>
-                        <UniformGrid Columns="2" Rows="3">
-                            <DockPanel Margin="0,0,10,8">
-                                <TextBlock Text="Fire" Width="60" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedStats.AttributeDamageFire, StringFormat=F2}" Style="{StaticResource InputStyle}"/>
-                            </DockPanel>
-                            <DockPanel Margin="0,0,0,8">
-                                <TextBlock Text="Ice" Width="60" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedStats.AttributeDamageIce, StringFormat=F2}" Style="{StaticResource InputStyle}"/>
-                            </DockPanel>
-                            <DockPanel Margin="0,0,10,8">
-                                <TextBlock Text="Earth" Width="60" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedStats.AttributeDamageEarth, StringFormat=F2}" Style="{StaticResource InputStyle}"/>
-                            </DockPanel>
-                            <DockPanel Margin="0,0,0,8">
-                                <TextBlock Text="Lightning" Width="60" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedStats.AttributeDamageLigthning, StringFormat=F2}" Style="{StaticResource InputStyle}"/>
-                            </DockPanel>
-                            <DockPanel Margin="0,0,10,8">
-                                <TextBlock Text="Water" Width="60" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedStats.AttributeDamageWater, StringFormat=F2}" Style="{StaticResource InputStyle}"/>
-                            </DockPanel>
-                            <DockPanel Margin="0,0,0,8">
-                                <TextBlock Text="Wind" Width="60" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedStats.AttributeDamageWind, StringFormat=F2}" Style="{StaticResource InputStyle}"/>
-                            </DockPanel>
+                        <TextBlock Text="?띿꽦 諛곗쑉" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
+                        <UniformGrid Columns="2" Rows="3" Margin="0,0,0,14">
+                            <Border Style="{StaticResource AttributeCardStyle}">
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock Text="遺?" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBox Text="{Binding SelectedStats.AttributeDamageFire, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource AttributeCardStyle}">
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock Text="臾?" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBox Text="{Binding SelectedStats.AttributeDamageIce, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource AttributeCardStyle}">
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock Text="??" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBox Text="{Binding SelectedStats.AttributeDamageEarth, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource AttributeCardStyle}">
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock Text="踰덇컻" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBox Text="{Binding SelectedStats.AttributeDamageLigthning, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource AttributeCardStyle}">
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock Text="臾?" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBox Text="{Binding SelectedStats.AttributeDamageWater, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource AttributeCardStyle}">
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock Text="諛붾엺" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBox Text="{Binding SelectedStats.AttributeDamageWind, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
+                                </DockPanel>
+                            </Border>
                         </UniformGrid>
-                    </StackPanel>
-                </Border>
 
-                <!-- Drops & Money Card -->
-                <Border Style="{StaticResource CardStyle}">
-                    <StackPanel>
-                        <TextBlock Text="Rewards &amp; Drops" Style="{StaticResource CardHeaderStyle}"/>
+                        <TextBlock Text="?꾨━??" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="60"/>
                             </Grid.ColumnDefinitions>
-                            <DockPanel Grid.Column="0" Margin="0,0,0,8">
-                                <TextBlock Text="Money" Width="80" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedStats.Money}" Style="{StaticResource InputStyle}"/>
-                            </DockPanel>
-                            <DockPanel Grid.Column="2" Margin="0,0,0,8">
-                                <TextBlock Text="Exp" Width="80" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedStats.Experience}" Style="{StaticResource InputStyle}"/>
-                            </DockPanel>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Drop 1:" VerticalAlignment="Center" Margin="65,5,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <Grid Grid.Row="0" Grid.Column="1" Margin="0,-15,158,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <controls:SkillSelector Grid.Column="0"
+                                          ItemsSource="{Binding ItemOptions}"
+                                          DisplayMemberPath="Name"
+                                          SelectedValuePath="Key"
+                                          SelectedValue="{Binding SelectedDrop1OptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding SelectedStats.Drop1Hash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="6,25,0,0" VerticalAlignment="Center"/>
+                            </Grid>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="?뺣쪧:" VerticalAlignment="Center" Margin="-37,12,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding SelectedStats.Drop1Rate}" Style="{StaticResource SubInputStyle}" Margin="0,9,0,3" HorizontalContentAlignment="Center"/>
+
+                            <TextBlock Grid.Row="1" Text="Drop 2:" VerticalAlignment="Center" Margin="65,5,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <Grid Grid.Row="1" Grid.Column="1" Margin="0,-15,158,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <controls:SkillSelector Grid.Column="0"
+                                          ItemsSource="{Binding ItemOptions}"
+                                          DisplayMemberPath="Name"
+                                          SelectedValuePath="Key"
+                                          SelectedValue="{Binding SelectedDrop2OptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding SelectedStats.Drop2Hash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="6,25,0,0" VerticalAlignment="Center"/>
+                            </Grid>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="?뺣쪧:" VerticalAlignment="Center" Margin="-37,12,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding SelectedStats.Drop2Rate}" Style="{StaticResource SubInputStyle}"  Margin="0,9,0,3" HorizontalContentAlignment="Center"/>
                         </Grid>
-                        
-                        <!-- Drop 1 -->
-                        <Grid Margin="0,5,0,0">
+                    </StackPanel>
+                </Border>
+                <Border x:Name="TechCard" Style="{StaticResource CardStyle}" Visibility="Visible">
+                    <StackPanel>
+                        <TextBlock Text="諛고? 湲곗닠" Style="{StaticResource CardHeaderStyle}"
+                                   FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic"/>
+
+                        <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="100"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="130"/>
                                 <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="60"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Drop 1" VerticalAlignment="Center" Width="80"/>
-                            <TextBox Grid.Column="1" Text="{Binding SelectedStats.Drop1Hash, StringFormat=X8}" Style="{StaticResource InputStyle}"/>
-                            <TextBlock Grid.Column="3" Text="Rate" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBox Grid.Column="4" Text="{Binding SelectedStats.Drop1Rate}" Style="{StaticResource InputStyle}"/>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="怨듦꺽:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <controls:SkillSelector Grid.Row="0"
+                                      ItemsSource="{Binding BattleCommandOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Key"
+                                      SelectedValue="{Binding SelectedAttackOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Margin="-40,-20,48,6" Grid.Column="1"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SelectedStats.AttackHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="-40,5,8,6"/>
+                            <TextBlock Grid.Row="0" Grid.Column="3" Text="?뺣쪧:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding SelectedStats.AttackPercentage, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6" HorizontalContentAlignment="Center"/>
+
+                            <TextBlock Grid.Row="1" Text="湲곗닠:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <controls:SkillSelector Grid.Row="1" Grid.Column="1"
+                                      ItemsSource="{Binding BattleCommandOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Key"
+                                      SelectedValue="{Binding SelectedTechniqueOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Margin="-40,-20,48,6"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SelectedStats.TechniqueHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="-40,5,8,6"/>
+                            <TextBlock Grid.Row="1" Grid.Column="3" Text="?뺣쪧:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding SelectedStats.TechniquePercentage, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6" HorizontalContentAlignment="Center"/>
+
+                            <TextBlock Grid.Row="2" Text="鍮숈쓽:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <controls:SkillSelector Grid.Row="2" Grid.Column="1"
+                                      ItemsSource="{Binding BattleCommandOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Key"
+                                      SelectedValue="{Binding SelectedInspiritOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Margin="-40,-20,48,6"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SelectedStats.InspiritHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="-40,5,8,6"/>
+                            <TextBlock Grid.Row="2" Grid.Column="3" Text="?뺣쪧:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding SelectedStats.InspiritPercentage, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6" HorizontalContentAlignment="Center"/>
+
+                            <TextBlock Grid.Row="3" Text="媛??" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <controls:SkillSelector Grid.Row="3" Grid.Column="1"
+                                      ItemsSource="{Binding BattleCommandOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Key"
+                                      SelectedValue="{Binding SelectedGuardOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Margin="-40,-20,48,6"/>
+                            <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding SelectedStats.GuardHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="-40,5,8,6"/>
+                            <TextBlock Grid.Row="3" Grid.Column="3" Text="?뺣쪧:" VerticalAlignment="Center" Margin="40,0,6,0" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding SelectedStats.GuardPercentage, StringFormat=F2}" Style="{StaticResource SubInputStyle}" HorizontalContentAlignment="Center"/>
                         </Grid>
 
-                        <!-- Drop 2 -->
-                        <Grid Margin="0,5,0,0">
+                        <TextBlock Text="Other Skill Hashes" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="140"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="130"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Drop 2" VerticalAlignment="Center" Width="80"/>
-                            <TextBox Grid.Column="1" Text="{Binding SelectedStats.Drop2Hash, StringFormat=X8}" Style="{StaticResource InputStyle}"/>
-                            <TextBlock Grid.Column="3" Text="Rate" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBox Grid.Column="4" Text="{Binding SelectedStats.Drop2Rate}" Style="{StaticResource InputStyle}"/>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="?꾩궡湲곗닠:" VerticalAlignment="Center" Margin="57,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <controls:SkillSelector Grid.Row="0" Grid.Column="1"
+                                      ItemsSource="{Binding BattleCommandOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Key"
+                                      SelectedValue="{Binding SelectedSoultimateOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Margin="0,-18,8,6"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SelectedStats.SoultimateHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="1" Text="?ㅽ궗(?⑥떆釉?:" VerticalAlignment="Center" Margin="36,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <controls:SkillSelector Grid.Row="1" Grid.Column="1"
+                                      ItemsSource="{Binding AbilityOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Key"
+                                      SelectedValue="{Binding SelectedAbilityOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Margin="0,-18,8,6"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SelectedStats.AbilityHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="2" Text="?띾뱷 寃쎈줈(?ㅼ뭅?고듃):" VerticalAlignment="Center" Margin="-3,0,8,0" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <controls:SkillSelector Grid.Row="2" Grid.Column="1"
+                                      ItemsSource="{Binding ScoutOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Key"
+                                      SelectedValue="{Binding SelectedScoutOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Margin="0,-18,8,6"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SelectedStats.ScoutableHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- Save Button -->
-                <Button Content="Save Changes"
-                        Command="{Binding SaveChangesCommand}"
-                        Height="45"
-                        Margin="0,10,0,20"
-                        Background="#804CAF50"
-                        Foreground="White"
-                        FontSize="16"
-                        FontWeight="Bold"
-                        BorderThickness="0">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="12"/>
-                        </Style>
-                    </Button.Resources>
-                </Button>
+                <Border x:Name="QuoteCard" Style="{StaticResource CardStyle}" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="???/ 硫붾떖" Style="{StaticResource CardHeaderStyle}"
+                                   FontFamily="G留덉폆 ?곗뒪 TTF Bold, Malgun Gothic"/>
 
+                        <TextBlock Text="Dialogue Hashes" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="???1" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedStats.Quote1, StringFormat=X8}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Quote1Text}" Style="{StaticResource QuotePreviewStyle}"/>
+
+                            <TextBlock Grid.Row="2" Text="???2" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedStats.Quote2, StringFormat=X8}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Quote2Text}" Style="{StaticResource QuotePreviewStyle}"/>
+
+                            <TextBlock Grid.Row="4" Text="???3" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding SelectedStats.Quote3, StringFormat=X8}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Quote3Text}" Style="{StaticResource QuotePreviewStyle}"/>
+
+                            <TextBlock Grid.Row="6" Text="移쒓뎄 ???" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding SelectedStats.BefriendQuote, StringFormat=X8}" Style="{StaticResource InputStyle}"/>
+                            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding BefriendQuoteText}" Style="{StaticResource QuotePreviewStyle}" Margin="0,4,0,0"/>
+                        </Grid>
+
+                        <TextBlock Text="吏꾪솕 / 硫붾떖" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="吏꾪솕 ?ㅽ봽??" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedStats.EvolveOffset}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="1" Text="硫붾떖 ?ㅽ봽??" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedStats.MedaliumOffset}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="2" Text="硫붾떖???쒖떆" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" Foreground="#B0B0B0"/>
+                            <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding SelectedStats.ShowInMedalium}" VerticalAlignment="Center" Foreground="White"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </Grid>
 </UserControl>
+
+

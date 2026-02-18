@@ -8,6 +8,8 @@ using ICN_T2.Logic.Project;
 using ICN_T2.YokaiWatch.Games;
 using ICN_T2.UI.WPF.Services;
 using System.Linq;
+using System.IO;
+using ICN_T2.Logic.Level5.Binary;
 
 namespace ICN_T2.UI.WPF.ViewModels
 {
@@ -83,6 +85,7 @@ namespace ICN_T2.UI.WPF.ViewModels
 
         public ObservableCollection<Project> Projects { get; } = new ObservableCollection<Project>();
         public ObservableCollection<ModdingToolViewModel> ModdingTools { get; } = new ObservableCollection<ModdingToolViewModel>();
+        public ObservableCollection<GlobalToolViewModel> GlobalTools { get; } = new ObservableCollection<GlobalToolViewModel>();
 
         // ----------------------------------------------------------------------------------
         // [Commands]
@@ -94,6 +97,7 @@ namespace ICN_T2.UI.WPF.ViewModels
         public ReactiveCommand<Unit, Unit> RefreshProjectListCommand { get; }
         public ReactiveCommand<Project, Unit> OpenProjectCommand { get; }
         public ReactiveCommand<Project, Unit> DeleteProjectCommand { get; }
+        public ReactiveCommand<Unit, Unit> ExtractAydCommand { get; }
 
         // ----------------------------------------------------------------------------------
         // [Constructor]
@@ -188,9 +192,12 @@ namespace ICN_T2.UI.WPF.ViewModels
                     await System.Threading.Tasks.Task.CompletedTask;
                 });
 
+            ExtractAydCommand = ReactiveCommand.Create(ExtractAyd);
+
             // 초기 프로젝트 목록 로드
             RefreshProjectList();
             InitializeModdingTools();
+            InitializeGlobalTools();
 
             System.Diagnostics.Debug.WriteLine("[ViewModel] ModernModWindowViewModel 초기화 완료 (한글)");
         }
@@ -292,11 +299,103 @@ namespace ICN_T2.UI.WPF.ViewModels
                     vm.MToolType = ToolType.CharacterScale;
                 else if (i == 2)
                     vm.MToolType = ToolType.YokaiStats;
+                else if (i == 3)
+                    vm.MToolType = ToolType.EncounterEditor;
 
                 ModdingTools.Add(vm);
             }
 
             System.Diagnostics.Debug.WriteLine($"[ViewModel] 모딩 도구 {ModdingTools.Count}개 초기화 완료 (한글)");
+        }
+
+        private void InitializeGlobalTools()
+        {
+            GlobalTools.Clear();
+            GlobalTools.Add(new GlobalToolViewModel(
+                title: "AYD Extractor",
+                iconPath: "pack://application:,,,/ICN_T2;component/Resources/UI%20icon/Tool.png",
+                command: ExtractAydCommand));
+        }
+
+        private void ExtractAyd()
+        {
+            try
+            {
+                var openDialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "AYD 파일 선택",
+                    Filter = "AYD Files (*.ayd)|*.ayd"
+                };
+
+                if (openDialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                using var outputDialog = new System.Windows.Forms.FolderBrowserDialog
+                {
+                    Description = "추출 파일을 저장할 폴더를 선택하세요."
+                };
+
+                if (outputDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK ||
+                    string.IsNullOrWhiteSpace(outputDialog.SelectedPath))
+                {
+                    return;
+                }
+
+                var loader = new AydLoader();
+                var data = loader.Load(File.ReadAllBytes(openDialog.FileName));
+
+                string outputRoot = Path.GetFullPath(outputDialog.SelectedPath);
+                string outputRootPrefix = outputRoot.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                    ? outputRoot
+                    : outputRoot + Path.DirectorySeparatorChar;
+
+                int extractedCount = 0;
+                for (int i = 0; i < data.Files.Count; i++)
+                {
+                    var file = data.Files[i];
+
+                    string relativePath = string.IsNullOrWhiteSpace(file.FileName)
+                        ? $"file_{i + 1:D4}.bin"
+                        : file.FileName.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
+
+                    string outputPath = Path.GetFullPath(Path.Combine(outputRoot, relativePath));
+                    if (!outputPath.StartsWith(outputRootPrefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        string safeExtension = Path.GetExtension(relativePath);
+                        if (string.IsNullOrWhiteSpace(safeExtension))
+                        {
+                            safeExtension = ".bin";
+                        }
+
+                        outputPath = Path.Combine(outputRoot, $"file_{i + 1:D4}{safeExtension}");
+                    }
+
+                    string? outputDirectory = Path.GetDirectoryName(outputPath);
+                    if (!string.IsNullOrWhiteSpace(outputDirectory))
+                    {
+                        Directory.CreateDirectory(outputDirectory);
+                    }
+
+                    File.WriteAllBytes(outputPath, file.Data);
+                    extractedCount++;
+                }
+
+                System.Windows.MessageBox.Show(
+                    $"AYD 추출이 완료되었습니다.\n파일 수: {extractedCount}\n출력 경로: {outputRoot}",
+                    "AYD Extractor",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"AYD 추출 중 오류가 발생했습니다.\n{ex.Message}",
+                    "AYD Extractor",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
         }
 
         private static string NormalizeHeaderText(string? text)

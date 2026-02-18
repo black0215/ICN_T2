@@ -3,7 +3,7 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ============================================ -->
-    <!-- 🌸 SAKURA SOFT COLOR PALETTE                  -->
+    <!-- ?뙵 SAKURA SOFT COLOR PALETTE                  -->
     <!-- ============================================ -->
 
     <!-- Warm Gold (Primary Action toned down) -->
@@ -51,7 +51,7 @@
     <!-- GRADIENTS                                     -->
     <!-- ============================================ -->
 
-    <!-- 🌸 Soft Glass Panel -->
+    <!-- ?뙵 Soft Glass Panel -->
     <LinearGradientBrush x:Key="PuniGlassPanelGradient" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="{StaticResource PuniGlassTop}" Offset="0"/>
         <GradientStop Color="{StaticResource PuniGlassMid}" Offset="0.5"/>
@@ -86,7 +86,7 @@
     <DropShadowEffect x:Key="PuniShadowPressed" Color="Black" Opacity="0.2" BlurRadius="6" ShadowDepth="1"/>
 
     <!-- ============================================ -->
-    <!-- 🌸 PRIMARY BUTTON (SOFT)                      -->
+    <!-- ?뙵 PRIMARY BUTTON (SOFT)                      -->
     <!-- ============================================ -->
 
     <Style x:Key="PuniButtonPrimary" TargetType="Button">
@@ -130,7 +130,7 @@
     </Style>
 
     <!-- ============================================ -->
-    <!-- 🌸 GLASS PANEL                                 -->
+    <!-- ?뙵 GLASS PANEL                                 -->
     <!-- ============================================ -->
 
     <Style x:Key="PuniGlassPanel" TargetType="Border">
@@ -143,7 +143,7 @@
     </Style>
 
     <!-- ============================================ -->
-    <!-- 🌸 ICON BUTTON                                 -->
+    <!-- ?뙵 ICON BUTTON                                 -->
     <!-- ============================================ -->
 
     <Style x:Key="PuniIconButtonStyle" TargetType="Button">
@@ -170,7 +170,7 @@
     </Style>
 
     <!-- ============================================ -->
-    <!-- 🌸 CANCEL BUTTON                               -->
+    <!-- ?뙵 CANCEL BUTTON                               -->
     <!-- ============================================ -->
 
     <Style x:Key="PuniCancelButtonStyle" TargetType="Button">
@@ -199,7 +199,7 @@
     </Style>
 
     <!-- ============================================ -->
-    <!-- 🌸 TAB BUTTON (Segmented Control)              -->
+    <!-- ?뙵 TAB BUTTON (Segmented Control)              -->
     <!-- ============================================ -->
 
     <Style x:Key="PuniTabButtonStyle" TargetType="RadioButton">
@@ -247,4 +247,205 @@
         </Setter>
     </Style>
 
+    <!-- iOS-style list/filter shared styles -->
+    <Style x:Key="IosListGroupCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="#40FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#2AFFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="18"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <Style x:Key="IosSearchFieldStyle" TargetType="Border">
+        <Setter Property="Background" Value="#52FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#2AFFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="14"/>
+    </Style>
+
+    <Style x:Key="IosListItemStyle" TargetType="ListBoxItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Margin" Value="0,3"/>
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Cell"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="14"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Cell" Property="Background" Value="#26FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Cell" Property="Background" Value="#7A0A84FF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+        <Style x:Key="IosFilterChipCheckBoxStyle" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="#233445"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Margin" Value="0,0,10,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid>
+                        <Border x:Name="Chip"
+                                Background="#66FFFFFF"
+                                BorderBrush="#3E9AA7B8"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="11,6">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chip" Property="Background" Value="#85F6FAFF"/>
+                            <Setter TargetName="Chip" Property="BorderBrush" Value="#5A8DA8C0"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Chip" Property="Background" Value="#DDE7F2FF"/>
+                            <Setter Property="Foreground" Value="#14354F"/>
+                            <Setter TargetName="Chip" Property="BorderBrush" Value="#909BB5D4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="IosFilterComboBoxItemStyle" TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="#1F2D3D"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Grid Margin="2">
+                        <Border x:Name="ItemButton"
+                                Background="Transparent"
+                                BorderBrush="#1E000000"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="ItemButton" Property="Background" Value="#66ECF3FF"/>
+                            <Setter TargetName="ItemButton" Property="BorderBrush" Value="#4E8EA6BE"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemButton" Property="Background" Value="#DDE7F2FF"/>
+                            <Setter Property="Foreground" Value="#14354F"/>
+                            <Setter TargetName="ItemButton" Property="BorderBrush" Value="#909BB5D4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="IosFilterComboBoxStyle" TargetType="ComboBox">
+        <Setter Property="Background" Value="#70FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#4A8EA3B8"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="#1F2D3D"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource IosFilterComboBoxItemStyle}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid SnapsToDevicePixels="True">
+                        <Border x:Name="FieldBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="11"/>
+
+                        <ContentPresenter x:Name="ContentSite"
+                                          Margin="10,0,34,0"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Left"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"/>
+
+                        <ToggleButton x:Name="DropDownToggle"
+                                      Width="24"
+                                      Height="22"
+                                      Margin="0,0,4,0"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Focusable="False"
+                                      IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                      Background="#2DFFFFFF"
+                                      BorderBrush="#20000000"
+                                      BorderThickness="1"
+                                      Cursor="Hand">
+                            <TextBlock Text="v"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="#B0223445"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </ToggleButton>
+
+                        <Popup x:Name="PART_Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Fade">
+                            <Border Margin="0,6,0,0"
+                                    Background="#F2FBFDFF"
+                                    BorderBrush="#4A8EA3B8"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="4">
+                                <ScrollViewer MaxHeight="320">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="FieldBorder" Property="BorderBrush" Value="#6C829EB8"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="FieldBorder" Property="BorderBrush" Value="#A278A6D4"/>
+                            <Setter TargetName="FieldBorder" Property="Background" Value="#88FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="IosSegmentedRadioStyle" TargetType="RadioButton" BasedOn="{StaticResource PuniTabButtonStyle}">
+        <Setter Property="Padding" Value="18,7"/>
+        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="FontSize" Value="13"/>
+    </Style>
+
 </ResourceDictionary>
+

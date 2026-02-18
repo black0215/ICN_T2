@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
@@ -14,15 +14,22 @@
     <Compile Remove="Logic\Binary\**" />
     <Compile Remove="UI\WPF\Controls\**" />
     <Compile Remove="YokaiWatch\Logic\**" />
+    <!-- Guard against stale local build artifacts being picked up as source -->
+    <Compile Remove="artifacts\**" />
+    <Compile Remove="**\*_wpftmp.csproj" />
     <EmbeddedResource Remove="Level5\**" />
     <EmbeddedResource Remove="Logic\Binary\**" />
     <EmbeddedResource Remove="UI\WPF\Controls\**" />
     <EmbeddedResource Remove="YokaiWatch\Logic\**" />
+    <EmbeddedResource Remove="artifacts\**" />
     <None Remove="Level5\**" />
     <None Remove="Logic\Binary\**" />
     <None Remove="UI\WPF\Controls\**" />
     <None Remove="YokaiWatch\Logic\**" />
+    <None Remove="artifacts\**" />
+    <None Remove="**\*_wpftmp.csproj" />
     <Page Remove="UI\WPF\Controls\**" />
+    <Page Remove="artifacts\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -44,6 +51,8 @@
     <Resource Include="Resources\UI icon\**\*" />
     <Resource Include="Resources\MenuBG\**\*" />
     <Resource Include="Resources\Tribe\**\*" />
+    <!-- [Phase 5] HLSL Shader Resource -->
+    <Resource Include="UI\WPF\Effects\GlassRefraction.ps" />
     <None Update="Resources\Rank Icon\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -63,6 +72,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3719.77" />
+
     <PackageReference Include="ReaLTaiizor" Version="3.8.1.5" />
     <PackageReference Include="WPF.UI" Version="3.4.2.7" />
     <PackageReference Include="System.Reactive" Version="6.1.0" />

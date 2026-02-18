@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace ICN_T2.YokaiWatch.Common
 {
@@ -6,29 +6,29 @@ namespace ICN_T2.YokaiWatch.Common
     {
         public static readonly Dictionary<int, string> YW1 = new()
         {
-            {0x00, " "}, {0x01, "Rice Balls"}, {0x02, "Bread"}, {0x03, "Candy"},
-            {0x04, "Milk"}, {0x05, "Juice"}, {0x06, "Hamburgers"}, {0x08, "Ramen"},
-            {0x0A, "Chinese Food"}, {0x0C, "Vegetables"}, {0x0D, "Meat"}, {0x0E, "Seafood"},
+            {0x00, " "}, {0x01, "주먹밥"}, {0x02, "빵"}, {0x03, "사탕"},
+            {0x04, "우유"}, {0x05, "주스"}, {0x06, "햄버거"}, {0x08, "라면"},
+            {0x0A, "중화요리"}, {0x0C, "야채"}, {0x0D, "고기"}, {0x0E, "해산물"},
         };
 
         public static readonly Dictionary<int, string> YW2 = new()
         {
-            {0x00, " "}, {0x01, "Rice Balls"}, {0x02, "Bread"}, {0x03, "Candy"},
-            {0x04, "Milk"}, {0x05, "Juice"}, {0x06, "Hamburgers"}, {0x07, "Ramen"},
-            {0x08, "Sushi"}, {0x09, "Chinese Food"}, {0x0B, "Vegetables"}, {0x0C, "Meat"},
-            {0x0D, "Seafood"}, {0x0E, "Curry"}, {0x0F, "Sweets"}, {0x10, "Oden Stew"},
-            {0x11, "Soba"}, {0x12, "Snacks"}, {0x13, "Chocobars"},
+            {0x00, " "}, {0x01, "주먹밥"}, {0x02, "빵"}, {0x03, "사탕"},
+            {0x04, "우유"}, {0x05, "주스"}, {0x06, "햄버거"}, {0x07, "라면"},
+            {0x08, "초밥"}, {0x09, "중화요리"}, {0x0B, "야채"}, {0x0C, "고기"},
+            {0x0D, "해산물"}, {0x0E, "커리"}, {0x0F, "과자"}, {0x10, "오뎅"},
+            {0x11, "소바"}, {0x12, "스낵"}, {0x13, "초코바"},
         };
 
         public static readonly Dictionary<int, string> YW3 = new()
         {
-            {0x00, " "}, {0x01, "Rice Balls"}, {0x02, "Bread"}, {0x03, "Candy"},
-            {0x04, "Milk"}, {0x05, "Juice"}, {0x06, "Hamburgers"}, {0x07, "Ramen"},
-            {0x08, "Sushi"}, {0x09, "Chinese Food"}, {0x0B, "Vegetables"}, {0x0C, "Meat"},
-            {0x0D, "Seafood"}, {0x0E, "Curry"}, {0x0F, "Sweets"}, {0x10, "Oden Stew"},
-            {0x11, "Soba"}, {0x12, "Snacks"}, {0x13, "Chocobars"}, {0x14, "Ice Cream"},
-            {0x15, "Donut"}, {0x16, "Pizza"}, {0x17, "Hot Dog"}, {0x18, "Pasta"},
-            {0x19, "Tempura"}, {0x1A, "Mega Tasty Bar"}, {0x1C, "Sukiyaki"},
+            {0x00, " "}, {0x01, "주먹밥"}, {0x02, "빵"}, {0x03, "사탕"},
+            {0x04, "우유"}, {0x05, "주스"}, {0x06, "햄버거"}, {0x07, "라면"},
+            {0x08, "초밥"}, {0x09, "중화요리"}, {0x0B, "야채"}, {0x0C, "고기"},
+            {0x0D, "해산물"}, {0x0E, "커리"}, {0x0F, "과자"}, {0x10, "오뎅"},
+            {0x11, "소바"}, {0x12, "스낵"}, {0x13, "초코바"}, {0x14, "아이스크림"},
+            {0x15, "도넛"}, {0x16, "피자"}, {0x17, "핫도그"}, {0x18, "파스타"},
+            {0x19, "튀김"}, {0x1A, "메가 맛바"}, {0x1C, "스키야키"},
         };
     }
 }

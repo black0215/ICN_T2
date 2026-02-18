@@ -31,14 +31,28 @@ namespace ICN_T2.UI.WPF.Animations
         #region └─────────────────────────────────────────────────────────────────────┘
 
         // ━━━ 메인 패널 크기 (MainContentPanel) ━━━
-        public const double MainPanel_ProjectMenu_MarginAll = 50.0;
-        // → 창 전체 여백 (위/아래/좌/우 동일)
-        // → 값 ↑: 패널이 작아짐 | 값 ↓: 패널이 커짐
+        // [변경] MarginAll 대신 상하좌우 개별 설정으로 변경
+        // [최적화] 모든 스텝에서 동일한 크기 유지 (통일)
+        public const double MainPanel_ProjectMenu_MarginTop = 30.0;
+        public const double MainPanel_ProjectMenu_MarginBottom = 40.0;
+        public const double MainPanel_ProjectMenu_MarginLeft = 40.0;
+        public const double MainPanel_ProjectMenu_MarginRight = 40.0;
+
+        // [NEW] 유리창(배경) 내부 크기 미세 조절 (컨테이너 크기는 유지하되, 유리만 작게 그리기)
+        public const double Glass_MarginTop = 20.0;    // 값 ↑: 유리가 위쪽에서 더 아래로 내려옴
+        public const double Glass_MarginBottom = 20.0; // 값 ↑: 유리가 아래쪽에서 더 위로 올라감
+        public const double Glass_MarginLeft = 50.0;   // 값 ↑: 유리가 왼쪽(사이드바 쪽)에서 더 오른쪽으로 밀림
+        public const double Glass_MarginRight = 20.0;  // 값 ↑: 유리가 오른쪽에서 더 안쪽으로 들어옴
+
+        // → 위/아래 값을 늘리면 창의 높이가 줄어듭니다.
+        // → 왼쪽/오른쪽 값을 늘리면 창의 너비가 줄어듭니다.
+        // ※ 주의: 창이 줄어도 내부 비율은 유지되지만, 글자 크기나 고정 여백(40px)은 변하지 않습니다.
+        //    (창을 많이 줄일 경우 아래 MainContentRootGrid_Margin 값도 줄이는 것을 추천합니다.)
 
         public const double MainPanel_CornerRadius = 40.0;
         // → 패널 모서리 둥글기 (px)
 
-        public const double MainContentRootGrid_Margin = 20.0;
+        public const double MainContentRootGrid_Margin = 40.0;
         // → 패널 내부 콘텐츠 여백 (px)
         // → 값 ↑: 내부 콘텐츠가 작아짐
 
@@ -47,16 +61,17 @@ namespace ICN_T2.UI.WPF.Animations
         // → 프로젝트 메뉴에서 사이드바 너비 (px)
 
         // ━━━ 오른쪽 콘텐츠 영역 (RightContentArea) ━━━
-        public const double RightContent_MarginRight = 25.0;
-        // → 오른쪽 여백 (px) | 값 ↑: 콘텐츠 영역 작아짐
+        public const double RightContent_MarginRight = -2.0;
+        // → 오른쪽 여백 (px) | 값 ↑: 콘텐츠 영역 작아짐 (
 
-        public const double RightContent_MarginBottom = 10.0;
-        // → 아래쪽 여백 (px) | 값 ↑: 콘텐츠 영역 작아짐
+        public const double RightContent_MarginBottom = -14.0;
+        // → 아래쪽 여백 (px) | 값 ↑: 콘텐츠 영역 작아짐 (10 -> 80)
 
         public const double RightContent_SpacerWidth = 20.0;
         // → 사이드바 ↔ 콘텐츠 사이 간격 (px)
 
-        public const double ProjectListView_Margin = 35.0;
+        public const double ProjectListView_Margin = 45.0;
+        public const double ProjectListView_MarginBottom = 38.0;
         // → 프로젝트 목록 내부 여백 (px)
         // → 값 ↑: 목록이 작아짐
 
@@ -69,13 +84,13 @@ namespace ICN_T2.UI.WPF.Animations
         #region └─────────────────────────────────────────────────────────────────────┘
 
         // ━━━ 메인 패널 트랜지션 (프로젝트 → 모딩) ━━━
-        public const double MainPanel_ModdingMenu_MarginLeft = 20.0;
-        // → 모딩 메뉴 진입 시 왼쪽 마진만 축소 (px)
-        // → 사이드바 축소에 맞춰서 왼쪽 여백도 줄어듦
+        public const double MainPanel_ModdingMenu_MarginLeft = 40.0;     // 메인메뉴와 동일하게 통일
+        // → 모딩 메뉴 진입 시 왼쪽 마진 (px)
+        // → 사이드바 축소에 맞춰서 왼쪽 여백도 조정
 
-        public const double MainPanel_ModdingMenu_MarginTop = 50.0;
-        public const double MainPanel_ModdingMenu_MarginRight = 50.0;
-        public const double MainPanel_ModdingMenu_MarginBottom = 50.0;
+        public const double MainPanel_ModdingMenu_MarginTop = 40.0;      // 메인메뉴와 동일
+        public const double MainPanel_ModdingMenu_MarginRight = 40.0;    // 메인메뉴와 동일
+        public const double MainPanel_ModdingMenu_MarginBottom = 40.0;   // 메인메뉴와 동일
         // → 모딩 메뉴에서 위/오른쪽/아래 여백 (복귀 시 사용)
 
         // ━━━ 사이드바 트랜지션 ━━━
@@ -104,6 +119,7 @@ namespace ICN_T2.UI.WPF.Animations
         // → 책을 먼저 보고, 그 뒤에 배경이 움직이는 연출
         public const int Book_SlideDuration = 350;         // 책 슬라이드 속도 (ms)
         public const int Book_CloseFadeOutDuration = 150;  // 책 닫기 페이드 아웃 (ms)
+        public const int Book_CloseSyncFadeDuration = Fade_Duration; // 책 표지/속지 동시 페이드 시간 (ms)
 
         // ━━━ 책 위치/크기 ━━━
         public const double Book_SlideOffset = 10.0;       // 책 슬라이드 거리 (px)
@@ -114,14 +130,19 @@ namespace ICN_T2.UI.WPF.Animations
         // → 사이드바 바로 옆에 위치
 
         // ━━━ 책 표지(MenuOpen1) 기본 마진 ━━━
-        public const double Book_BaseMarginLeft = 20.0;    // 책 기본 왼쪽 마진 (px)
+        public const double Book_BaseMarginLeft = 0.0;    // 책 기본 왼쪽 마진 (px)
         public const double Book_BaseMarginTop = 0.0;      // 책 기본 위쪽 마진 (px)
         public const double Book_BaseMarginRight = 0.0;    // 책 기본 오른쪽 마진 (px)
         public const double Book_BaseMarginBottom = 0.0;   // 책 기본 아래쪽 마진 (px)
 
         // ━━━ 속지(MenuOpen2) 오프셋 ━━━
-        public const double Book_Open2OffsetX = 15.0;      // 속지 X 오프셋 (px) — 책장과 속지 정렬용
-        public const double Book_Open2OffsetY = 0.0;       // 속지 Y 오프셋 (px)
+        public const double Book_Open2OffsetX = 30.0;      // 속지 X 오프셋 (px) — 책장과 속지 정렬용
+        public const double Book_Open2OffsetY = 32.0;       // 속지 Y 오프셋 (px)
+        public const double Book_Page_LeftNudge = 0.0;      // 속지 전용 추가 X 오프셋 미세조정 (px)
+        public const double Book_SidebarFollowFactor = 0.35; // 사이드바 이동량을 책에 얼마나 반영할지 (0~1)
+        public const double Book_ModdingMenu_LeftNudge = 24.0; // 모딩 메뉴 단계에서 책 전체 X 보정 (px)
+        public const double Book_ToolMenu_LeftNudge = 18.0; // 도구 메뉴 단계에서 책 전체 X 보정 (px)
+        public const double Book_GlobalCloseOffsetX = 20.0; // 책 전체 X 보정 (오른쪽 +20px)
 
         #endregion
         #endregion
@@ -132,11 +153,11 @@ namespace ICN_T2.UI.WPF.Animations
         #region └─────────────────────────────────────────────────────────────────────┘
 
         // ━━━ 메인 패널 트랜지션 (모딩 → 도구) ━━━
-        public const double MainPanel_ToolMenu_CompactMargin = 10.0;
-        // → 도구 메뉴 진입 시 전체 마진 축소 (px)
-        // → 화면을 최대한 활용하기 위해 여백 최소화
+        public const double MainPanel_ToolMenu_CompactMargin = 40.0;     // 10 → 40 (비율 유지)
+        // → 도구 메뉴 진입 시 전체 마진 (px)
+        // → 화면을 최대한 활용하되 비율 유지
 
-        public const double MainContentRootGrid_ToolMenu_CompactMargin = 10.0;
+        public const double MainContentRootGrid_ToolMenu_CompactMargin = 20.0;  // 10 → 20 (비율 유지)
         // → 도구 메뉴에서 내부 그리드 마진 (px)
 
         // ━━━ 배경 확장 애니메이션 ━━━
@@ -148,22 +169,120 @@ namespace ICN_T2.UI.WPF.Animations
         // → 배경 상단이 위로 올라가는 최대 높이 (px)
         // → 값 ↑: 도구 메뉴에서 더 높이 올라감
 
+        // iOS-style dark glass tuning for main content.
+        // Base tone requested: #1E1E1E
+        public const string MainContent_GlassTint = "#26DFF6FF"; // cool bluish-white glass tint
+        public const string MainContent_GlassDarkTint = "#00000000";
+        public const string MainContent_GlassOverlayTint = "#12182630";
+        public const double MainContent_GlassBlurRadius = 10.0;
+
+        // === Hierarchy A: Global Backdrop (얇고 투명한 대기) ===
+        public const double MainContent_GlassRefractionStrength = 0.06;   // 기존 0.12 대비 50% 축소
+        public const double MainContent_GlassNoiseScale = 1.80;           // 더 미세한 입자
+        public const double MainContent_GlassSpecular = 0.10;
+        public const double MainContent_GlassInnerShadow = 0.026;
+        public const double MainContent_GlassDensity = 0.24;
+        public const double MainContent_GlassMouseRadius = 0.30;
+        public const double MainContent_GlassMouseFalloffPower = 1.60;
+        public const double MainContent_GlassMouseOffsetStrength = 0.08;
+        public const double MainContent_GlassEdgeHighlightStrength = 0.08;
+
+        // === Hierarchy B: The Book (단단한 크리스탈) ===
+        public const string Book_GlassTag = "BookGlassBackplate";
+        public const double Book_GlassRefractionStrength = 0.045;
+        public const double Book_GlassNoiseScale = 1.35;
+        public const double Book_GlassSpecular = 0.10;
+        public const double Book_GlassInnerShadow = 0.022;
+        public const double Book_GlassDensity = 0.18;
+        public const double Book_GlassMouseRadius = 0.24;
+        public const double Book_GlassMouseFalloffPower = 1.85;
+        public const double Book_GlassMouseOffsetStrength = 0.10;
+        public const double Book_GlassEdgeHighlightStrength = 0.05;
+
+        // === Sidebar policy: Book 프로필과 동일 ===
+        public const double Sidebar_GlassRefractionStrength = 0.045;
+        public const double Sidebar_GlassNoiseScale = 1.35;
+        public const double Sidebar_GlassSpecular = 0.14;
+        public const double Sidebar_GlassInnerShadow = 0.035;
+        public const double Sidebar_GlassDensity = 0.48;
+        public const double Sidebar_GlassMouseRadius = 0.22;
+        public const double Sidebar_GlassMouseFalloffPower = 2.40;
+        public const double Sidebar_GlassMouseOffsetStrength = 0.10;
+        public const double Sidebar_GlassEdgeHighlightStrength = 0.11;
+
+        // === Hierarchy C/D: Modding Medal Backplate (책 위 12개만) ===
+        public const string ModdingMedal_GlassTag = "ModdingMedalBackplateGlass";
+        public const double ModdingMenu_ButtonRefractionStrength = 0.075;
+        public const double ModdingMedal_GlassRefractionStrength = 0.075;
+        public const double ModdingMedal_GlassNoiseScale = 1.45;
+        public const double ModdingMedal_GlassSpecular = 0.11;
+        public const double ModdingMedal_GlassInnerShadow = 0.0;
+        public const double ModdingMedal_GlassDensity = 0.62;
+        public const double ModdingMedal_GlassMouseRadius = 1.50; // 약 1.5 버튼 반경
+        public const double ModdingMedal_GlassMouseFalloffPower = 3.20;
+        public const double ModdingMedal_GlassMouseOffsetStrength = 0.12;
+        public const double ModdingMedal_GlassEdgeHighlightStrength = 0.03;
+
+        // Tool panel glass matching tuning.
+        public const string ToolPanel_GlassTag = "ToolGlassPanel";
+        public const string ToolPanel_BackdropTag = "ToolPanelBackdropGlass";
+        public const double ToolPanel_BackdropBlurRadius = 24.0;
+        public const string ToolPanel_BackdropTint = "#A8EAF4FA";
+        public const double ToolPanel_GlassRefractionStrength = 0.18;
+        public const double ToolPanel_GlassNoiseScale = 1.25;
+
+        // Interactive element unified glass (single-area hover/input).
+        public const string ToolInteractive_GlassTag = "ToolInteractiveGlass";
+        public static readonly bool ToolInteractive_EnableRefraction = false;
+        public const double ToolInteractive_GlassRefractionStrength = 0.14;
+        public const double ToolInteractive_GlassNoiseScale = 4.2;
+
         public const double Background_StepXPosition = 400.0;
+        public const double Background_SidebarStartX = 240.0;
+        public const double Background_RiserMaxHeight = 80.0;
         // → 배경 상단 꺾임 시작 X 좌표 (px)
         // → 이 지점부터 오른쪽이 위로 올라감
 
-        public const double Background_CornerRadius = 25.0;
+        public const double Background_CornerRadius = 40.0;
         // → 배경 모서리 둥글기 (px)
 
         // ━━━ 헤더 & 콘텐츠 간격 ━━━
-        public const double Tool_HeaderContentSpacing = 55.0;
+        public const double Tool_HeaderContentSpacing = 22.0;
         // → 도구 메뉴에서 헤더 ↔ 콘텐츠 간격 (px)
 
         public const double CharacterInfo_HeaderSpacingNormal = 80.0;
         // → 일반 모드(비-도구) 헤더 ↔ 콘텐츠 간격 (px)
 
         public const double CharacterInfo_MarginBottom = 20.0;
+
+        // Tool host layout tuning (tool views sync with stepped glass expansion).
+        public const double ToolHost_MoveUpPx = 100.0;
+        public const double ToolHost_ExtraHeightPx = 0.0;
+        public const double ToolHost_LeftPadding = 14.0;
+        public const double ToolHost_RightPadding = 18.0;
+        public const double ToolHost_BottomPadding = -8.0;
+        public const double ToolHost_TopPadding = 5.0;
         // → CharacterInfo 아래 여백 (px)
+
+        // ━━━ 캐릭터 정보창 내부 레이아웃 (CharacterInfoV3) ━━━
+        public const double CharacterList_WidthRatio = 30.0;    // 왼쪽 목록 너비 비율 (30*)
+        public const double CharacterDetail_WidthRatio = 70.0;  // 오른쪽 상세 너비 비율 (70*)
+        // ※ 주의: 두 값을 동시에 줄이면 비율이 같아져서 변화가 없습니다.
+        // 왼쪽을 넓히려면 List를 늘리고 Detail을 줄이세요. (예: 40 대 60)
+
+        public const double CharacterDetail_VerticalMargin = 0.0;   // 오른쪽 상세 상하 여백 (px)
+        public const double CharacterDetail_HorizontalMargin = 0.0; // 오른쪽 상세 좌우 여백 (px)
+
+        // CharacterInfoV3 panel layout overrides (applied in code-behind too).
+        public const double CharacterListPanel_TopMargin = 90.0;
+        public const double CharacterListPanel_BottomMargin = 14.0;   // shorten character list height by 10px
+        public const double CharacterDetailPanel_TopMargin = -2.0;
+        public const double CharacterDetailPanel_BottomMargin = 16.0; // shorten right panel bottom length by additional 20px
+        public const double CharacterDetailPanel_CornerRadius = 34.0;  // rounder right panel corners
+        public const double CharacterListBackdrop_Expand = 8.0;
+        public const double CharacterDetailBackdrop_Expand = 10.0;
+        public const double CharacterListBackdrop_RadiusBoost = 6.0;
+        public const double CharacterDetailBackdrop_RadiusBoost = 8.0;
 
         // ━━━ 도구 콘텐츠 페이드인 ━━━
         public const int Tool_ContentFadeDuration = 300;
@@ -179,12 +298,42 @@ namespace ICN_T2.UI.WPF.Animations
         public const int Medal_FlyDuration = 600;          // 메달 비행 속도 (ms)
         public const int Medal_LandDuration = 600;         // 메달 착지 속도 (ms)
         public const int Medal_FlyExtraDelay = 50;         // 메달 비행 후 추가 대기 (ms)
+        public const int Medal_AfterBookReadyDelay = 200;  // 책이 완전히 열린 후 메달 등장 시작 지연 (ms)
 
-        public const double Medal_PopScale = 1.6;          // 메달 팝업 최종 스케일
+        public const double Medal_PopScale = 2.64;         // 메달 팝업 최종 스케일 (+60%)
         public const double Medal_PopYOffset = -88.0;      // 메달 팝업 Y 오프셋 (px)
 
         #endregion
+
+        // ━━━ 디버그 로그 제어 ━━━
+        public static readonly bool EnableVerboseLayoutLogs = false;
+        public static readonly bool EnableVerboseLayoutFileLog = false;
         #endregion
+        // ━━━ 버튼 진입 애니메이션 (Spring) ━━━
+        public const double Button_SpringDuration = 800;      // 0.8초
+        public const double Button_SpringBounce = 0.4;        // 탄력성
+        public const double Button_InitialDelay = 100;        // 0.1초
+        public const double Button_StaggerDelay = 40;         // 0.04초
+        public const double Button_FromScale = 0.99;          // 초기 스케일 (+65%)
+        public const double Button_ToScale = 1.65;            // 최종 스케일 (+65%)
+        public const double Button_FromOpacity = 0;           // 투명
+        public const double Button_ToOpacity = 1;             // 불투명
+
+        // ━━━ 리스트/패널 진입 애니메이션 (경량 Drop-In Bounce) ━━━
+        public static readonly bool ListEntrance_Enable = true;
+        public const double ListEntrance_DurationMs = 320.0;
+        public const double ListEntrance_StaggerDelayMs = 36.0;
+        public const double ListEntrance_OffsetY = -16.0;
+        public const double ListEntrance_FromScale = 0.985;
+        public const double ListEntrance_ToScale = 1.0;
+        public const double ListEntrance_FromOpacity = 0.0;
+        public const double ListEntrance_ToOpacity = 1.0;
+        public const double ListEntrance_BounceAmplitude = 0.22;
+        // Modding menu icon entrance budget:
+        // totalWindow = first start -> last completed
+        public const double ModdingToolsEntrance_TotalWindowMs = 400.0;
+        public const double ModdingToolsEntrance_ItemDurationMs = 220.0;
+
         #endregion
 
         // ═══════════════════════════════════════════════════════════════════════════
@@ -200,7 +349,7 @@ namespace ICN_T2.UI.WPF.Animations
         public const int Transition_RiserDuration = 600;
         // → 배경 위로 올라가는 속도 (ms)
 
-        // ━━━ 모딩 메뉴 → 도구 메뉴 ━━━
+        // ━━━ 모딩 메뉴 ↔ 도구 메뉴 ━━━
         public const int Transition_MedalPopDelay = 100;
         // → 메달 팝업 후 배경 확장 시작 전 대기 (ms)
         // → 메달 팝업(300ms) + 이 값 = 배경 확장 시작 시간
@@ -226,6 +375,12 @@ namespace ICN_T2.UI.WPF.Animations
         public const double Header_SlideStartX = -120.0;   // 헤더 슬라이드 시작 X 위치 (px)
         public const double Header_MinHeight = 40.0;       // 헤더 최소 높이 (px)
         public const double Header_ContentSpacing = 30.0;  // 헤더 ↔ 콘텐츠 간격 (px)
+        public const double Header_MarginLeft = 10.0;
+        public const double Header_MarginTop = 0.0;
+        public const double Header_MarginRight = 0.0;
+        public const double Header_MarginBottom = 30.0;
+        public const int TitleBar_SlideDuration = 250;
+        public const double TitleBar_HiddenOffsetY = -38.0;
 
         #endregion
 
@@ -312,3 +467,4 @@ namespace ICN_T2.UI.WPF.Animations
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     }
 }
+

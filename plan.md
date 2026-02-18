@@ -1,100 +1,75 @@
-# UI 개선 & 고급 필터 구현 계획
+### Legacy UI & Data Binding Report 1. Charabase (캐릭터 기본 정보)
 
-## 개요
-캐릭터 기본정보 창(CharacterInfoV3)에 3가지 기능 추가:
-1. 즉시 리스트 선택 (MouseDown 즉시 반응)
-2. Rank/Tribe 아이콘 표시 (리스트 + 상세 패널)
-3. 슬라이드 고급 검색 필터 패널
+- 파일 : CharabaseWindow.cs
 
----
+- 데이터 구조 : List<ICharabase> 를 메인으로 사용하며, IGame.GetCharacterbase() 로 로드합니다.
 
-## 1. 즉시 리스트 선택
+- 바인딩 방식 :
 
-### 파일: `CharacterInfoV3.xaml`
-- ListBoxItem 스타일에 `EventSetter`로 `PreviewMouseLeftButtonDown` 추가
-- 또는: code-behind에서 `LstCharacters.PreviewMouseLeftButtonDown` 핸들러로 즉시 선택
+  - 텍스트 : NameHash 를 chara_text 파일(T2bþ 포맷)에서 조회하여 표시합니다.
 
-### 파일: `CharacterInfoV3.xaml.cs`
-- `ListBoxItem_PreviewMouseDown` 핸들러 추가
-- `VisualTreeHelper`로 클릭된 `ListBoxItem` 찾아 즉시 `IsSelected = true` 설정
+  - 이미지 : FileNamePrefix , Number , Variant 값을 조합해 face_icon.xi 에서 비트맵을 추출합니다.
 
----
+  - 속성 연결 : UI 컨트롤(ComboBox 등) 변경 시 SelectedCharabase 객체의 속성( Tribe , Rank 등)에 직접 값을 할당합니다.
 
-## 2. Rank/Tribe 아이콘 표시
+- 특이 사항 : 메달 위치( MedalPosX/Y )는 원본 이미지에서 좌표를 계산해 직접 Crop 하는 로직( CropMedal )을 포함합니다.
 
-### 리소스 접근 방식
-- Rank Icon: `Resources/Rank Icon/Rank_E~S.png` → CopyToOutput → 런타임 파일 로드
-- Tribe Icon: `Resources/Tribe Icon/all_icon_kind01_00~11.png` → CopyToOutput → 런타임 파일 로드
-- WPF BitmapImage로 변환하여 바인딩
+2. Charascale (캐릭터 비율/크기)
 
-### 파일: `CharacterWrapper` (CharacterViewModel.cs)
-- `RankIconSource` 프로퍼티 추가 (BitmapImage)
-- `TribeIconSource` 프로퍼티 추가 (BitmapImage)
-- 아이콘 캐시: `static Dictionary<int, BitmapImage>` 사용 (파일 반복 로드 방지)
+- 파일 : CharascaleWindow.cs
 
-### 파일: `CharacterInfoV3.xaml`
-**리스트 ItemTemplate 변경:**
-```
-[이름]  [Rank아이콘 18x18] [Tribe아이콘 18x18]
-```
-- 기존 텍스트 `Rank`, `Tribe` → `Image` 컨트롤로 교체
-- `Source="{Binding RankIconSource}"`, `Source="{Binding TribeIconSource}"`
+- 데이터 구조 : List<ICharascale>
 
-**상세 패널 (Panel 1 - 캐릭터 아이콘):**
-- 종족 TextBlock 옆에 Tribe 아이콘 이미지 추가
-- Panel 4의 Rank/Tribe 텍스트를 아이콘+텍스트 조합으로 변경
+- 바인딩 방식 :
 
----
+  - Charabase 리스트와 BaseHash 를 기준으로 조인(Join)하여 캐릭터 이름과 아이콘을 가져옵니다.
 
-## 3. 고급 검색 필터 슬라이드 패널
+  - Scale1 ~ Scale7 까지의 부동소수점 값을 NumericUpDown 컨트롤과 직접 매핑합니다.
 
-### 디자인
-- 검색 패널(Panel 0) 오른쪽에서 왼쪽→오른쪽으로 슬라이드
-- 슬라이드 트리거: 검색 패널 상단에 "필터" 토글 버튼
-- 슬라이드 패널은 검색 패널 위에 오버레이 (Z-Index)
-- 패널 너비: ~280px, 배경: `#70FFFFFF`, CornerRadius: 15
+- 버전 분기 : 게임 버전(YW1 vs YW2)에 따라 활성화되는 스케일 필드 개수가 다릅니다 (YW1은 일부 비활성).
 
-### 필터 옵션 (위→아래 배치)
-1. **카테고리 체크박스**: ☑ 요괴 ☑ NPC (기본 둘 다 체크)
-2. **Rank 콤보박스**: 전체 / E / D / C / B / A / S (아이콘 표시)
-3. **Tribe 콤보박스**: 전체 / 용맹 / 불가사의 / ... (아이콘 표시)
-4. **좋아하는 음식 콤보박스**: 전체 / Rice Balls / Bread / ... (아이콘 표시)
-5. **싫어하는 음식 콤보박스**: 전체 / Rice Balls / Bread / ...
-6. **해시 검색 TextBox**: BaseHash/NameHash 검색
+3. Charaparam (요괴 능력치 및 스킬)
 
-### 정렬 옵션
-- **정렬 콤보박스**: 파일명순(기본) / 이름순 / 해시순 / Tribe순
+- 파일 : CharaparamWindow.cs
 
-### 파일: `CharacterViewModel.cs`
-- `RankList` 프로퍼티: 게임의 Rank 목록 (IGame에서 가져오기 or 하드코딩 E~S)
-- `TribeList` 프로퍼티: `IGame.Tribes` 딕셔너리에서
-- `FoodList` 프로퍼티: `IGame.FoodsType` 딕셔너리에서
-- `FilterFavoriteFood` (int?) 프로퍼티
-- `FilterHatedFood` (int?) 프로퍼티
-- `SortOption` enum + 프로퍼티
-- `AllowFilter()` 업데이트: FavoriteFood/HatedFood 필터, 정렬 적용
+- 데이터 구조 : List<ICharaparam> 이 핵심이며, YW3/Blasters의 경우 BattleCharaparam , HackslashCharaparam 리스트를 별도로 관리합니다.
 
-### 파일: `CharacterInfoV3.xaml`
-- RootGrid에 필터 오버레이 Border 추가 (Grid.Column="0", 높은 ZIndex)
-- 필터 토글 버튼 (검색 헤더 오른쪽)
-- 슬라이드 애니메이션: TranslateTransform X → 0 (보이기) / -280 (숨기기)
+- 바인딩 방식 :
 
-### 파일: `CharacterInfoV3.xaml.cs`
-- `ToggleFilterPanel()` 메서드
-- `DoubleAnimation`으로 TranslateTransform.X 애니메이션 (300ms, EaseOut)
+  - 스탯 : Min/Max HP, 힘, 정신, 방어, 속도 등 10종 이상의 스탯을 바인딩.
 
----
+  - 스킬/공격 : AttackHash , TechniqueHash 등을 BattleCommand (YW1/2) 또는 Skill (YW3) 리스트와 매핑하여 ComboBox로 표시.
 
-## 구현 순서
-1. **CharacterWrapper에 아이콘 프로퍼티 + 캐시** (ViewModel 수준)
-2. **리스트 즉시 선택** (XAML + code-behind)
-3. **리스트/상세 아이콘 표시** (XAML ItemTemplate 수정)
-4. **ViewModel 필터/정렬 확장** (FilterFood, SortOption)
-5. **슬라이드 패널 XAML 구조** (오버레이, 컨트롤 배치)
-6. **슬라이드 애니메이션** (code-behind)
+  - 진화(Evolution) : EvolveParam (대상 해시), Level , Cost 를 관리하며, 저장 시 List<ICharaevolve> 를 재구축합니다.
 
-## 수정 파일 목록
-- `CharacterInfoV3.xaml` — 리스트 아이콘, 필터 패널 UI
-- `CharacterInfoV3.xaml.cs` — 즉시 선택, 슬라이드 애니메이션
-- `CharacterViewModel.cs` — 아이콘 프로퍼티, 필터/정렬 확장
-- `ICN_T2.csproj` — Food Icon을 CopyToOutput에 추가 (현재 누락)
+- 🚨 중요 저장 로직 (Critical Save Logic) :
+
+  - YW2 버전 : 데이터 손상을 방지하기 위해 SaveCharaparamAndEvolution 통합 저장 메서드를 사용해야 합니다. 개별 저장 시 파일 구조가 깨질 수 있습니다.
+
+  - YW3 버전 : BattleCharaparam , HackslashCharaparam 등 확장 데이터도 함께 저장해야 합니다.
+  
+  4. Encounter (인카운터/출현 정보)
+
+- 파일 : EncounterWindow.cs
+
+- 데이터 구조 : 맵별 IEncountTable 및 IEncountChara 리스트.
+
+- UI 구조 : DataGridView 를 사용하여 테이블 형태의 편집 UI 제공.
+
+- 바인딩 방식 :
+
+  - Grid의 콤보박스 컬럼이 Charaparams 리스트와 바인딩되어 요괴를 선택.
+
+  - CellValueChanged 이벤트에서 EncountOffsets 를 통해 실제 데이터( EncountChara )를 갱신.
+
+### ⚠️ 현행 모던 UI(WPF)와의 갭 분석 (Gap Analysis)
+
+현재 YokaiStatsViewModel.cs 등을 검토한 결과, 레거시의 안전장치들이 일부 누락되어 있습니다.
+
+
+
+1. YW2 저장 위험 : 모던 코드는 단순히 _game.SaveCharaparam() 만 호출하고 있어, YW2 데이터 손상(Corruption) 위험이 큽니다. 레거시처럼 SaveCharaparamAndEvolution 을 사용하도록 수정이 시급합니다.
+
+2. 진화 데이터 누락 : 현재 모던 UI는 진화( Evolution ) 정보를 로드하거나 편집하는 기능이 구현되어 있지 않습니다.
+
+3. 확장 데이터 누락 : YW3의 Hackslash (블래스터 모드) 스탯 등이 모던 UI에는 반영되지 않았습니다.
