@@ -1,4 +1,4 @@
-<Window x:Class="ICN_T2.UI.WPF.ModernModWindow"
+﻿<Window x:Class="ICN_T2.UI.WPF.ModernModWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -774,6 +774,40 @@
                                                        Visibility="Collapsed" Opacity="0"
                                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                        Margin="6,4,6,8"/>
+                                             <!-- 9. Evolution Editor (New) -->
+                                             <views:EvolutionView x:Name="EvolutionEditorContent"
+                                                        DataContext="{x:Null}"
+                                                        Visibility="Collapsed" Opacity="0"
+                                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                        Margin="6,4,6,8"/>
+
+                                             <!-- 10. Fusion Editor (New) -->
+                                             <views:FusionView x:Name="FusionEditorContent"
+                                                        DataContext="{x:Null}"
+                                                        Visibility="Collapsed" Opacity="0"
+                                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                        Margin="6,4,6,8"/>
+
+                                             <!-- 11. Shop Editor (New) -->
+                                             <views:ShopView x:Name="ShopEditorContent"
+                                                        DataContext="{x:Null}"
+                                                        Visibility="Collapsed" Opacity="0"
+                                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                        Margin="6,4,6,8"/>
+
+                                             <!-- 12. Treasure Box Editor (New) -->
+                                             <views:TreasureBoxView x:Name="TreasureBoxContent"
+                                                        DataContext="{x:Null}"
+                                                        Visibility="Collapsed" Opacity="0"
+                                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                        Margin="6,4,6,8"/>
+
+                                             <!-- 13. Crank-a-kai Editor (New) -->
+                                             <views:CrankakaiView x:Name="CrankakaiContent"
+                                                        DataContext="{x:Null}"
+                                                        Visibility="Collapsed" Opacity="0"
+                                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                        Margin="6,4,6,8"/>
 
                                             <!-- Tool / Option placeholders -->
                                             <views:GlobalToolsView x:Name="ToolPlaceholderContent"

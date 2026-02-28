@@ -6,7 +6,10 @@
              xmlns:conv="clr-namespace:ICN_T2.UI.WPF.Converters"
              mc:Ignorable="d"
              d:DesignHeight="720" d:DesignWidth="1080"
-             Foreground="White" FontFamily="Malgun Gothic"
+             ClipToBounds="False"
+             Background="Transparent"
+             TextElement.Foreground="#1F1F1F"
+              TextElement.FontFamily="{DynamicResource GmarketSansMedium}"
              xmlns:controls="clr-namespace:ICN_T2.UI.WPF.Views.Controls">
 
     <UserControl.Resources>
@@ -19,74 +22,87 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid x:Name="RootGrid" SnapsToDevicePixels="True" UseLayoutRounding="True">
+    <Grid x:Name="RootGrid"
+          SnapsToDevicePixels="True"
+          UseLayoutRounding="True"
+          ClipToBounds="False"
+          TextOptions.TextFormattingMode="Display"
+          TextOptions.TextRenderingMode="ClearType"
+          TextOptions.TextHintingMode="Fixed">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280" MaxWidth="400"/>
-            <ColumnDefinition Width="6"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="30*"/>
+            <ColumnDefinition Width="24"/>
+            <ColumnDefinition Width="70*"/>
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" CornerRadius="15" Tag="ToolPanelBackdropGlass" IsHitTestVisible="False"/>
-        <Border Grid.Column="0" Background="#26FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="15" Padding="15">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="요괴 능력치" FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Visibility="Hidden"/>
+        <Grid Grid.Column="0" Margin="0,90,0,0">
+            <Border CornerRadius="24" Tag="ToolPanelBackdropGlass" IsHitTestVisible="False"/>
+            <Border Background="#33FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="24" Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="요괴 능력치" FontSize="24" FontWeight="Bold" FontFamily="{StaticResource GmarketSansBold}" Margin="0,0,0,15" Visibility="Hidden"/>
 
-                <Border Grid.Row="1" Margin="0,0,0,15" Height="36" Style="{StaticResource IosSearchFieldStyle}">
-                    <Grid>
-                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="White" FontSize="14" VerticalContentAlignment="Center" Padding="12,0,10,0"/>
-                        <TextBlock Text="寃??.." IsHitTestVisible="False" VerticalAlignment="Center" Foreground="#80FFFFFF" Visibility="{Binding SearchText, Converter={StaticResource StringEmptyToVisibility}}" Margin="14,0,0,0"/>
-                    </Grid>
-                </Border>
+                    <Border Grid.Row="1" Margin="0,0,0,15" Height="36" Style="{StaticResource IosSearchFieldStyle}">
+                        <Grid>
+                            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#1F1F1F" FontSize="14" VerticalContentAlignment="Center" Padding="12,0,10,0"/>
+                            <TextBlock Text="검색.." IsHitTestVisible="False" VerticalAlignment="Center" Foreground="#601F1F1F" Visibility="{Binding SearchText, Converter={StaticResource StringEmptyToVisibility}}" Margin="14,0,0,0"/>
+                        </Grid>
+                    </Border>
 
-                <ListBox Grid.Row="2" ItemsSource="{Binding FilteredList}" SelectedItem="{Binding SelectedStats}" 
-                         Background="Transparent" BorderThickness="0" 
-                         ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource IosListItemStyle}">
-                            <Style.Triggers>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="#7A0A84FF"/>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                    <ListBox Grid.Row="2" ItemsSource="{Binding FilteredList}" SelectedItem="{Binding SelectedStats}" 
+                             Background="Transparent" BorderThickness="0" 
+                             ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource IosListItemStyle}">
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#7A0A84FF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                                <Image Grid.Column="0" Source="{Binding Icon}" Width="40" Height="40" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                                    <Image Grid.Column="0" Source="{Binding Icon}" Width="40" Height="40" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
 
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextTrimming="CharacterEllipsis"/>
-                                    <StackPanel Orientation="Horizontal" Opacity="0.7">
-                                        <Image Source="{Binding RankIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
-                                        <Image Source="{Binding TribeIcon}" Width="14" Height="14"/>
-                                        <TextBlock Text="{Binding ParamHash, StringFormat='ID: {0:X8}'}" FontSize="11" Margin="8,0,0,0" FontFamily="Consolas" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal" Opacity="0.7">
+                                            <Image Source="{Binding RankIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                            <Image Source="{Binding TribeIcon}" Width="14" Height="14"/>
+                                            <TextBlock Text="{Binding ParamHash, StringFormat='ID: {0:X8}'}" FontSize="11" Margin="8,0,0,0" FontFamily="Consolas" VerticalAlignment="Center"/>
+                                        </StackPanel>
                                     </StackPanel>
-                                </StackPanel>
 
-                                <TextBlock Grid.Column="2" Text=">" FontSize="18" Opacity="0.5" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-        </Border>
+                                    <TextBlock Grid.Column="2" Text=">" FontSize="18" Opacity="0.5" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
 
-        <Border Grid.Column="2" CornerRadius="15" Tag="ToolPanelBackdropGlass" IsHitTestVisible="False" Visibility="{Binding SelectedStats, Converter={StaticResource NullToVisibility}}"/>
-        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0" Visibility="{Binding SelectedStats, Converter={StaticResource NullToVisibility}}">
-            <StackPanel>
+        <Grid Grid.Column="2"
+              Margin="0,-15,0,-30"
+              ClipToBounds="False"
+              Visibility="{Binding SelectedStats, Converter={StaticResource NullToVisibility}}">
+            <Border CornerRadius="28" Tag="ToolPanelBackdropGlass" IsHitTestVisible="False"/>
+            <Border Background="#33FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="28" Padding="14">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0">
+                    <StackPanel>
                 <StackPanel.Resources>
                     <Style TargetType="Border" x:Key="CardStyle">
                         <Setter Property="Background" Value="#80101015"/>
@@ -224,10 +240,10 @@
                 </Border>
                 <Border x:Name="StatsCard" Style="{StaticResource CardStyle}" Visibility="Collapsed">
                     <StackPanel>
-                        <TextBlock Text="?λ젰移?/ ?깆옣 / ?쒕엻" Style="{StaticResource CardHeaderStyle}"
+                        <TextBlock Text="능력치 / 성장 / 드롭" Style="{StaticResource CardHeaderStyle}"
                             FontFamily="{StaticResource GmarketSansBold}"/>
 
-                        <TextBlock Text="?듭떖 ?λ젰移?(理쒖냼 / 理쒕?)" FontWeight="SemiBold" Margin="0,0,0,10"
+                        <TextBlock Text="핵심 능력치(최소 / 최대)" FontWeight="SemiBold" Margin="0,0,0,10"
                                    FontFamily="{StaticResource GmarketSansMedium}" FontSize="16" Foreground="#E0E0E0"/>
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
@@ -247,24 +263,24 @@
                             <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedStats.MinHP}" Style="{StaticResource InputStyle}" Margin="0,0,6,6"/>
                             <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding SelectedStats.MaxHP}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="1" Text="??" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBlock Grid.Row="1" Text="힘" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
                             <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedStats.MinStrength}" Style="{StaticResource InputStyle}" Margin="0,0,6,6"/>
                             <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding SelectedStats.MaxStrength}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="2" Text="?뺤떊??" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="2" Text="정신력" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedStats.MinSpirit}" Style="{StaticResource InputStyle}" Margin="0,0,6,6"/>
                             <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding SelectedStats.MaxSpirit}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="3" Text="諛⑹뼱??" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="3" Text="방어력" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SelectedStats.MinDefense}" Style="{StaticResource InputStyle}" Margin="0,0,6,6"/>
                             <TextBox Grid.Row="3" Grid.Column="2" Text="{Binding SelectedStats.MaxDefense}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="4" Text="?띾룄" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"  Margin="0,0,8,0"/>
+                            <TextBlock Grid.Row="4" Text="속도" Style="{StaticResource StatLabelStyle}" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"  Margin="0,0,8,0"/>
                             <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding SelectedStats.MinSpeed}" Style="{StaticResource InputStyle}" Margin="0,0,6,0"/>
                             <TextBox Grid.Row="4" Grid.Column="2" Text="{Binding SelectedStats.MaxSpeed}" Style="{StaticResource InputStyle}"/>
                         </Grid>
 
-                        <TextBlock Text="?깆옣 / 蹂댁긽 / ?λ퉬" FontWeight="SemiBold" Margin="0,0,0,10"
+                        <TextBlock Text="성장 / 보상 / 장비" FontWeight="SemiBold" Margin="0,0,0,10"
                                    FontFamily="{StaticResource GmarketSansBold}" FontSize="20" Foreground="#E0E0E0"/>
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
@@ -279,61 +295,61 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="?λ퉬 ?щ’" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="장비 슬롯" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
                             <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedStats.EquipmentSlotsAmount}" Style="{StaticResource SubInputStyle}" Margin="0,0,10,6"/>
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Favorite Donut(紐⑤쫫?덀뀉)" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Favorite Donut(좋아하는 음식)" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
                             <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding SelectedStats.FavoriteDonut}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="??" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="돈" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
                             <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedStats.Money}" Style="{StaticResource SubInputStyle}" Margin="0,0,10,6"/>
-                            <TextBlock Grid.Row="1" Grid.Column="2" Text="寃쏀뿕移?" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="경험치" VerticalAlignment="Center" Margin="0,0,8,6" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
                             <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding SelectedStats.Experience}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="?깆옣 ?붽뎄??" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="성장 곡선" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic" FontSize="14"/>
                             <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedStats.ExperienceCurve}" Style="{StaticResource SubInputStyle}" Margin="0,0,10,0"/>
                         </Grid>
 
-                        <TextBlock Text="?띿꽦 諛곗쑉" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
+                        <TextBlock Text="속성 배율" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
                         <UniformGrid Columns="2" Rows="3" Margin="0,0,0,14">
                             <Border Style="{StaticResource AttributeCardStyle}">
                                 <DockPanel LastChildFill="True">
-                                    <TextBlock Text="遺?" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBlock Text="불" Style="{StaticResource AttributeLabelStyle}"/>
                                     <TextBox Text="{Binding SelectedStats.AttributeDamageFire, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
                                 </DockPanel>
                             </Border>
                             <Border Style="{StaticResource AttributeCardStyle}">
                                 <DockPanel LastChildFill="True">
-                                    <TextBlock Text="臾?" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBlock Text="얼음" Style="{StaticResource AttributeLabelStyle}"/>
                                     <TextBox Text="{Binding SelectedStats.AttributeDamageIce, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
                                 </DockPanel>
                             </Border>
                             <Border Style="{StaticResource AttributeCardStyle}">
                                 <DockPanel LastChildFill="True">
-                                    <TextBlock Text="??" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBlock Text="땅" Style="{StaticResource AttributeLabelStyle}"/>
                                     <TextBox Text="{Binding SelectedStats.AttributeDamageEarth, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
                                 </DockPanel>
                             </Border>
                             <Border Style="{StaticResource AttributeCardStyle}">
                                 <DockPanel LastChildFill="True">
-                                    <TextBlock Text="踰덇컻" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBlock Text="번개" Style="{StaticResource AttributeLabelStyle}"/>
                                     <TextBox Text="{Binding SelectedStats.AttributeDamageLigthning, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
                                 </DockPanel>
                             </Border>
                             <Border Style="{StaticResource AttributeCardStyle}">
                                 <DockPanel LastChildFill="True">
-                                    <TextBlock Text="臾?" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBlock Text="물" Style="{StaticResource AttributeLabelStyle}"/>
                                     <TextBox Text="{Binding SelectedStats.AttributeDamageWater, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
                                 </DockPanel>
                             </Border>
                             <Border Style="{StaticResource AttributeCardStyle}">
                                 <DockPanel LastChildFill="True">
-                                    <TextBlock Text="諛붾엺" Style="{StaticResource AttributeLabelStyle}"/>
+                                    <TextBlock Text="바람" Style="{StaticResource AttributeLabelStyle}"/>
                                     <TextBox Text="{Binding SelectedStats.AttributeDamageWind, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Right"/>
                                 </DockPanel>
                             </Border>
                         </UniformGrid>
 
-                        <TextBlock Text="?꾨━??" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
+                        <TextBlock Text="전리품" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120"/>
@@ -358,7 +374,7 @@
                                           SelectedValue="{Binding SelectedDrop1OptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                 <TextBlock Grid.Column="1" Text="{Binding SelectedStats.Drop1Hash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="6,25,0,0" VerticalAlignment="Center"/>
                             </Grid>
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="?뺣쪧:" VerticalAlignment="Center" Margin="-37,12,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="확률:" VerticalAlignment="Center" Margin="-37,12,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding SelectedStats.Drop1Rate}" Style="{StaticResource SubInputStyle}" Margin="0,9,0,3" HorizontalContentAlignment="Center"/>
 
                             <TextBlock Grid.Row="1" Text="Drop 2:" VerticalAlignment="Center" Margin="65,5,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
@@ -374,14 +390,14 @@
                                           SelectedValue="{Binding SelectedDrop2OptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                 <TextBlock Grid.Column="1" Text="{Binding SelectedStats.Drop2Hash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="6,25,0,0" VerticalAlignment="Center"/>
                             </Grid>
-                            <TextBlock Grid.Row="1" Grid.Column="2" Text="?뺣쪧:" VerticalAlignment="Center" Margin="-37,12,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="확률:" VerticalAlignment="Center" Margin="-37,12,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding SelectedStats.Drop2Rate}" Style="{StaticResource SubInputStyle}"  Margin="0,9,0,3" HorizontalContentAlignment="Center"/>
                         </Grid>
                     </StackPanel>
                 </Border>
                 <Border x:Name="TechCard" Style="{StaticResource CardStyle}" Visibility="Visible">
                     <StackPanel>
-                        <TextBlock Text="諛고? 湲곗닠" Style="{StaticResource CardHeaderStyle}"
+                        <TextBlock Text="배틀 기술" Style="{StaticResource CardHeaderStyle}"
                                    FontFamily="{StaticResource GmarketSansBold}"/>
 
                         <Grid Margin="0,0,0,14">
@@ -399,7 +415,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="怨듦꺽:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="0" Text="공격:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <controls:SkillSelector Grid.Row="0"
                                       ItemsSource="{Binding BattleCommandOptions}"
                                       DisplayMemberPath="Name"
@@ -407,10 +423,10 @@
                                       SelectedValue="{Binding SelectedAttackOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       Margin="-40,-20,48,6" Grid.Column="1"/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SelectedStats.AttackHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="-40,5,8,6"/>
-                            <TextBlock Grid.Row="0" Grid.Column="3" Text="?뺣쪧:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="0" Grid.Column="3" Text="확률:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding SelectedStats.AttackPercentage, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6" HorizontalContentAlignment="Center"/>
 
-                            <TextBlock Grid.Row="1" Text="湲곗닠:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="1" Text="기술:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <controls:SkillSelector Grid.Row="1" Grid.Column="1"
                                       ItemsSource="{Binding BattleCommandOptions}"
                                       DisplayMemberPath="Name"
@@ -418,10 +434,10 @@
                                       SelectedValue="{Binding SelectedTechniqueOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       Margin="-40,-20,48,6"/>
                             <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SelectedStats.TechniqueHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="-40,5,8,6"/>
-                            <TextBlock Grid.Row="1" Grid.Column="3" Text="?뺣쪧:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="1" Grid.Column="3" Text="확률:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding SelectedStats.TechniquePercentage, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6" HorizontalContentAlignment="Center"/>
 
-                            <TextBlock Grid.Row="2" Text="鍮숈쓽:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="2" Text="빙의:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <controls:SkillSelector Grid.Row="2" Grid.Column="1"
                                       ItemsSource="{Binding BattleCommandOptions}"
                                       DisplayMemberPath="Name"
@@ -429,10 +445,10 @@
                                       SelectedValue="{Binding SelectedInspiritOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       Margin="-40,-20,48,6"/>
                             <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SelectedStats.InspiritHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="-40,5,8,6"/>
-                            <TextBlock Grid.Row="2" Grid.Column="3" Text="?뺣쪧:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="2" Grid.Column="3" Text="확률:" VerticalAlignment="Center" Margin="40,0,6,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding SelectedStats.InspiritPercentage, StringFormat=F2}" Style="{StaticResource SubInputStyle}" Margin="0,0,0,6" HorizontalContentAlignment="Center"/>
 
-                            <TextBlock Grid.Row="3" Text="媛??" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="3" Text="가드:" VerticalAlignment="Center" Margin="22,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <controls:SkillSelector Grid.Row="3" Grid.Column="1"
                                       ItemsSource="{Binding BattleCommandOptions}"
                                       DisplayMemberPath="Name"
@@ -440,7 +456,7 @@
                                       SelectedValue="{Binding SelectedGuardOptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       Margin="-40,-20,48,6"/>
                             <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding SelectedStats.GuardHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="-40,5,8,6"/>
-                            <TextBlock Grid.Row="3" Grid.Column="3" Text="?뺣쪧:" VerticalAlignment="Center" Margin="40,0,6,0" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="3" Grid.Column="3" Text="확률:" VerticalAlignment="Center" Margin="40,0,6,0" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding SelectedStats.GuardPercentage, StringFormat=F2}" Style="{StaticResource SubInputStyle}" HorizontalContentAlignment="Center"/>
                         </Grid>
 
@@ -457,7 +473,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="?꾩궡湲곗닠:" VerticalAlignment="Center" Margin="57,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="0" Text="필살기:" VerticalAlignment="Center" Margin="57,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <controls:SkillSelector Grid.Row="0" Grid.Column="1"
                                       ItemsSource="{Binding BattleCommandOptions}"
                                       DisplayMemberPath="Name"
@@ -466,7 +482,7 @@
                                       Margin="0,-18,8,6"/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SelectedStats.SoultimateHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="1" Text="?ㅽ궗(?⑥떆釉?:" VerticalAlignment="Center" Margin="36,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="1" Text="스킬(패시브):" VerticalAlignment="Center" Margin="36,0,8,6" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <controls:SkillSelector Grid.Row="1" Grid.Column="1"
                                       ItemsSource="{Binding AbilityOptions}"
                                       DisplayMemberPath="Name"
@@ -475,7 +491,7 @@
                                       Margin="0,-18,8,6"/>
                             <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SelectedStats.AbilityHash, StringFormat='0x{0:X8}'}" Style="{StaticResource HashTextStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="2" Text="?띾뱷 寃쎈줈(?ㅼ뭅?고듃):" VerticalAlignment="Center" Margin="-3,0,8,0" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
+                            <TextBlock Grid.Row="2" Text="획득 경로(스카우트):" VerticalAlignment="Center" Margin="-3,0,8,0" FontSize="14" Foreground="#B0B0B0" FontFamily="LINE Seed Sans KR bold, Malgun Gothic"/>
                             <controls:SkillSelector Grid.Row="2" Grid.Column="1"
                                       ItemsSource="{Binding ScoutOptions}"
                                       DisplayMemberPath="Name"
@@ -489,7 +505,7 @@
 
                 <Border x:Name="QuoteCard" Style="{StaticResource CardStyle}" Visibility="Collapsed">
                     <StackPanel>
-                        <TextBlock Text="???/ 硫붾떖" Style="{StaticResource CardHeaderStyle}"
+                        <TextBlock Text="대사 / 메달" Style="{StaticResource CardHeaderStyle}"
                                    FontFamily="{StaticResource GmarketSansBold}"/>
 
                         <TextBlock Text="Dialogue Hashes" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
@@ -509,24 +525,24 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="???1" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBlock Grid.Row="0" Text="대사 1" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
                             <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedStats.Quote1, StringFormat=X8}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Quote1Text}" Style="{StaticResource QuotePreviewStyle}"/>
 
-                            <TextBlock Grid.Row="2" Text="???2" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBlock Grid.Row="2" Text="대사 2" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
                             <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedStats.Quote2, StringFormat=X8}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
                             <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Quote2Text}" Style="{StaticResource QuotePreviewStyle}"/>
 
-                            <TextBlock Grid.Row="4" Text="???3" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBlock Grid.Row="4" Text="대사 3" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
                             <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding SelectedStats.Quote3, StringFormat=X8}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
                             <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Quote3Text}" Style="{StaticResource QuotePreviewStyle}"/>
 
-                            <TextBlock Grid.Row="6" Text="移쒓뎄 ???" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBlock Grid.Row="6" Text="친구 대사" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" Foreground="#B0B0B0"/>
                             <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding SelectedStats.BefriendQuote, StringFormat=X8}" Style="{StaticResource InputStyle}"/>
                             <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding BefriendQuoteText}" Style="{StaticResource QuotePreviewStyle}" Margin="0,4,0,0"/>
                         </Grid>
 
-                        <TextBlock Text="吏꾪솕 / 硫붾떖" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
+                        <TextBlock Text="진화 / 메달" FontWeight="SemiBold" Margin="0,0,0,10" FontSize="20" Foreground="#E0E0E0"/>
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="130"/>
@@ -538,20 +554,20 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="吏꾪솕 ?ㅽ봽??" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBlock Grid.Row="0" Text="진화 오프셋" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
                             <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedStats.EvolveOffset}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="1" Text="硫붾떖 ?ㅽ봽??" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBlock Grid.Row="1" Text="메달 오프셋" VerticalAlignment="Center" Margin="0,0,8,6" FontSize="14" Foreground="#B0B0B0"/>
                             <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedStats.MedaliumOffset}" Style="{StaticResource InputStyle}" Margin="0,0,0,6"/>
 
-                            <TextBlock Grid.Row="2" Text="硫붾떖???쒖떆" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" Foreground="#B0B0B0"/>
+                            <TextBlock Grid.Row="2" Text="메달류 표시" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" Foreground="#B0B0B0"/>
                             <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding SelectedStats.ShowInMedalium}" VerticalAlignment="Center" Foreground="White"/>
                         </Grid>
                     </StackPanel>
                 </Border>
-            </StackPanel>
-        </ScrollViewer>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>
-
-

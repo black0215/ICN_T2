@@ -397,6 +397,17 @@
                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                           ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"/>
 
+                        <TextBox x:Name="PART_EditableTextBox"
+                                 Margin="10,0,34,0"
+                                 VerticalAlignment="Center"
+                                 HorizontalAlignment="Left"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="{TemplateBinding Foreground}"
+                                 FontSize="{TemplateBinding FontSize}"
+                                 Focusable="True"
+                                 Visibility="Hidden" />
+
                         <ToggleButton x:Name="DropDownToggle"
                                       Width="24"
                                       Height="22"
@@ -442,6 +453,10 @@
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
                             <Setter TargetName="FieldBorder" Property="BorderBrush" Value="#A278A6D4"/>
                             <Setter TargetName="FieldBorder" Property="Background" Value="#88FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsEditable" Value="True">
+                            <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                            <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.6"/>

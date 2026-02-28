@@ -1,0 +1,165 @@
+<UserControl x:Class="ICN_T2.UI.WPF.Views.TreasureBoxView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vms="clr-namespace:ICN_T2.UI.WPF.ViewModels"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="800"
+             ClipToBounds="False"
+             Background="Transparent"
+             TextElement.Foreground="#1F1F1F"
+             TextElement.FontFamily="{DynamicResource GmarketSansMedium}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Themes/PuniPuniTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid x:Name="RootGrid"
+          SnapsToDevicePixels="True"
+          UseLayoutRounding="True"
+          ClipToBounds="False"
+          TextOptions.TextFormattingMode="Display"
+          TextOptions.TextRenderingMode="ClearType"
+          TextOptions.TextHintingMode="Fixed">
+        <Border CornerRadius="28"
+                Tag="ToolPanelBackdropGlass"
+                IsHitTestVisible="False"
+                Margin="0,-15,0,-30"/>
+        <Border Background="#33FFFFFF"
+                BorderBrush="#22FFFFFF"
+                BorderThickness="1"
+                CornerRadius="28"
+                Padding="14"
+                Margin="0,-15,0,-30">
+            <Grid Margin="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                    <TextBlock Text="보물상자 에디터"
+                               FontSize="24"
+                               FontWeight="Bold"
+                               FontFamily="{StaticResource GmarketSansBold}"
+                               Margin="0,0,0,8"
+                               Foreground="#1F1F1F"/>
+                    <TextBlock Text="맵에 존재하는 상자들의 내용물과 확률, 식별자를 수정할 수 있습니다. 상자 인덱스는 데이터 상의 순서를 의미하며, 맵에서의 위치를 특정하려면 직접 변경하며 대조해야 합니다."
+                               TextWrapping="Wrap"
+                               Foreground="#5C1F1F1F"
+                               Margin="0,0,0,12"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="맵 선택:"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,10,0"
+                                       Foreground="#1F1F1F"
+                                       FontWeight="SemiBold"/>
+                            <ComboBox Width="250"
+                                      ItemsSource="{Binding Maps}"
+                                      SelectedItem="{Binding SelectedMap}"
+                                      DisplayMemberPath="MapName"
+                                      Style="{DynamicResource IosFilterComboBoxStyle}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <Border Grid.Row="1"
+                        Background="#40FFFFFF"
+                        BorderBrush="#15FFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="1">
+                    <DataGrid ItemsSource="{Binding SelectedMap.Boxes}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              Background="Transparent"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                              Foreground="#1F1F1F">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="N번째 상자 (순서)" IsReadOnly="True" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Header, StringFormat=상자 \{0\}}" Margin="8,0" VerticalAlignment="Center" Foreground="#5C1F1F1F"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="보상 (Item)" Width="250">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding DataContext.ItemOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  SelectedValue="{Binding ItemHash, UpdateSourceTrigger=PropertyChanged}"
+                                                  SelectedValuePath="Key"
+                                                  DisplayMemberPath="Name"
+                                                  Style="{DynamicResource IosFilterComboBoxStyle}"
+                                                  Margin="2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="수량 (Qty)" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch" Margin="2" Padding="4,2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="확률 (%)" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Percentage, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch" Margin="2" Padding="4,2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="Unk1 (등급/조건)" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Unk1, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch" Margin="2" Padding="4,2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="Unk2 (분류)" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Unk2, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch" Margin="2" Padding="4,2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Header" Value="{Binding Index}" />
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="#1F1F1F"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                    </DataGrid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

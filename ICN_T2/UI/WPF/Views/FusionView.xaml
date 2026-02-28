@@ -1,0 +1,325 @@
+<UserControl x:Class="ICN_T2.UI.WPF.Views.FusionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:conv="clr-namespace:ICN_T2.UI.WPF.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="650" d:DesignWidth="1100"
+             ClipToBounds="False"
+             Background="Transparent"
+             TextElement.Foreground="#1F1F1F"
+             TextElement.FontFamily="{DynamicResource GmarketSansMedium}">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Themes/PuniPuniTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <conv:NullToVisibilityConverter x:Key="NullToVisibility"/>
+            
+            <Style x:Key="IsItemToggleStyle" TargetType="ToggleButton">
+                <Setter Property="Background" Value="#E0E0E0"/>
+                <Setter Property="Foreground" Value="#1F1F1F"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="12">
+                                <TextBlock Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" 
+                                           Margin="{TemplateBinding Padding}" 
+                                           HorizontalAlignment="Center" 
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter Property="Background" Value="#4CAF50"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="Content" Value="Item"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="False">
+                                    <Setter Property="Background" Value="#2196F3"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="Content" Value="Yokai"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid x:Name="RootGrid"
+          SnapsToDevicePixels="True"
+          UseLayoutRounding="True"
+          ClipToBounds="False"
+          TextOptions.TextFormattingMode="Display"
+          TextOptions.TextRenderingMode="ClearType"
+          TextOptions.TextHintingMode="Fixed">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="30*"/>
+            <ColumnDefinition Width="24"/>
+            <ColumnDefinition Width="70*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- List Selection -->
+        <Grid Grid.Column="0" Margin="0,90,0,0">
+            <Border CornerRadius="24"
+                    Tag="ToolPanelBackdropGlass"
+                    IsHitTestVisible="False"/>
+            <Border Background="#33FFFFFF"
+                    BorderBrush="#22FFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="24"
+                    Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" 
+                               Text="합성 (Fusion)"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               Foreground="#1F1F1F"
+                               Margin="0,0,0,16"/>
+
+                    <ListBox Grid.Row="2"
+                             ItemsSource="{Binding Fusions}"
+                             SelectedItem="{Binding SelectedFusion, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling"
+                             VirtualizingPanel.ScrollUnit="Pixel"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource IosListItemStyle}">
+                                <Setter Property="Foreground" Value="#1F1F1F"/>
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding BaseName, StringFormat='Base: {0}'}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="{Binding MaterialName, StringFormat='+ {0}'}" FontSize="12" Opacity="0.7"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Detail Editing -->
+        <Grid Grid.Column="2"
+              Margin="0,-15,0,-30"
+              ClipToBounds="False"
+              Visibility="{Binding SelectedFusion, Converter={StaticResource NullToVisibility}}">
+            <Border CornerRadius="28"
+                    Tag="ToolPanelBackdropGlass"
+                    IsHitTestVisible="False"/>
+            <Border Background="#33FFFFFF"
+                    BorderBrush="#22FFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="28"
+                    Padding="14">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Margin="0">
+                    <StackPanel DataContext="{Binding SelectedFusion}">
+
+                        <!-- Summary Header -->
+                        <Border Background="#40FFFFFF"
+                                BorderBrush="#15FFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="24"
+                                Padding="14"
+                                Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Fusion Details" FontSize="20" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <TextBlock Text="Configure ingredients and the resulting outcome" FontSize="12" Opacity="0.68" FontFamily="Consolas"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Base & Material -->
+                            <StackPanel Grid.Column="0">
+                                <!-- Base Ingredient -->
+                                <Border Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="18" Padding="12" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,6">
+                                            <TextBlock Text="Base Ingredient" FontSize="11" FontWeight="Bold" Opacity="0.58" VerticalAlignment="Center"/>
+                                            <ToggleButton IsChecked="{Binding BaseIsItem}" HorizontalAlignment="Right" Style="{StaticResource IsItemToggleStyle}"/>
+                                        </Grid>
+                                        <ComboBox ItemsSource="{Binding DataContext.YokaiList, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                  SelectedValue="{Binding BaseHash, UpdateSourceTrigger=PropertyChanged}"
+                                                  SelectedValuePath="Key"
+                                                  DisplayMemberPath="Value"
+                                                  TextSearch.TextPath="Value"
+                                                  IsEditable="True"
+                                                  IsTextSearchEnabled="True"
+                                                  StaysOpenOnEdit="True">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox" BasedOn="{StaticResource IosFilterComboBoxStyle}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding BaseIsItem}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
+                                        <ComboBox ItemsSource="{Binding DataContext.ItemList, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                  SelectedValue="{Binding BaseHash, UpdateSourceTrigger=PropertyChanged}"
+                                                  SelectedValuePath="Key"
+                                                  DisplayMemberPath="Value"
+                                                  TextSearch.TextPath="Value"
+                                                  IsEditable="True"
+                                                  IsTextSearchEnabled="True"
+                                                  StaysOpenOnEdit="True">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox" BasedOn="{StaticResource IosFilterComboBoxStyle}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding BaseIsItem}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Material Ingredient -->
+                                <Border Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="18" Padding="12" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,6">
+                                            <TextBlock Text="Material Ingredient" FontSize="11" FontWeight="Bold" Opacity="0.58" VerticalAlignment="Center"/>
+                                            <ToggleButton IsChecked="{Binding MaterialIsItem}" HorizontalAlignment="Right" Style="{StaticResource IsItemToggleStyle}"/>
+                                        </Grid>
+                                        <ComboBox ItemsSource="{Binding DataContext.YokaiList, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                  SelectedValue="{Binding MaterialHash, UpdateSourceTrigger=PropertyChanged}"
+                                                  SelectedValuePath="Key"
+                                                  DisplayMemberPath="Value"
+                                                  TextSearch.TextPath="Value"
+                                                  IsEditable="True"
+                                                  IsTextSearchEnabled="True"
+                                                  StaysOpenOnEdit="True">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox" BasedOn="{StaticResource IosFilterComboBoxStyle}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MaterialIsItem}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
+                                        <ComboBox ItemsSource="{Binding DataContext.ItemList, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                  SelectedValue="{Binding MaterialHash, UpdateSourceTrigger=PropertyChanged}"
+                                                  SelectedValuePath="Key"
+                                                  DisplayMemberPath="Value"
+                                                  TextSearch.TextPath="Value"
+                                                  IsEditable="True"
+                                                  IsTextSearchEnabled="True"
+                                                  StaysOpenOnEdit="True">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox" BasedOn="{StaticResource IosFilterComboBoxStyle}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MaterialIsItem}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Result & Cost -->
+                            <StackPanel Grid.Column="2">
+                                <!-- Evolve To -->
+                                <Border Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="18" Padding="12" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,6">
+                                            <TextBlock Text="Results In..." FontSize="11" FontWeight="Bold" Opacity="0.58" VerticalAlignment="Center"/>
+                                            <ToggleButton IsChecked="{Binding EvolveToIsItem}" HorizontalAlignment="Right" Style="{StaticResource IsItemToggleStyle}"/>
+                                        </Grid>
+                                        <ComboBox ItemsSource="{Binding DataContext.YokaiList, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                  SelectedValue="{Binding EvolveToHash, UpdateSourceTrigger=PropertyChanged}"
+                                                  SelectedValuePath="Key"
+                                                  DisplayMemberPath="Value"
+                                                  TextSearch.TextPath="Value"
+                                                  IsEditable="True"
+                                                  IsTextSearchEnabled="True"
+                                                  StaysOpenOnEdit="True">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox" BasedOn="{StaticResource IosFilterComboBoxStyle}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding EvolveToIsItem}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
+                                        <ComboBox ItemsSource="{Binding DataContext.ItemList, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                  SelectedValue="{Binding EvolveToHash, UpdateSourceTrigger=PropertyChanged}"
+                                                  SelectedValuePath="Key"
+                                                  DisplayMemberPath="Value"
+                                                  TextSearch.TextPath="Value"
+                                                  IsEditable="True"
+                                                  IsTextSearchEnabled="True"
+                                                  StaysOpenOnEdit="True">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox" BasedOn="{StaticResource IosFilterComboBoxStyle}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding EvolveToIsItem}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Cost -->
+                                <Border Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="18" Padding="12">
+                                    <StackPanel>
+                                        <TextBlock Text="Fusion Cost (Oni Orbs / Y-Money)" FontSize="11" FontWeight="Bold" Opacity="0.58" Margin="0,0,0,6"/>
+                                        <TextBox Text="{Binding OniOrbCost, UpdateSourceTrigger=PropertyChanged}"
+                                                 FontFamily="Consolas"
+                                                 HorizontalContentAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

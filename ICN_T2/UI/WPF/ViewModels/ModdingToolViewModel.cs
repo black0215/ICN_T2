@@ -66,7 +66,12 @@ namespace ICN_T2.UI.WPF.ViewModels
         CharacterInfo,
         CharacterScale,
         YokaiStats,
-        EncounterEditor
+        EncounterEditor,
+        EvolutionEditor,
+        FusionEditor,
+        ShopEditor,
+        TreasureBox,
+        Crankakai
     }
 
     public class ItemCommand : ICommand
@@ -75,6 +80,8 @@ namespace ICN_T2.UI.WPF.ViewModels
         public ItemCommand(Action<object?> action) => _action = action;
         public bool CanExecute(object? parameter) => true;
         public void Execute(object? parameter) => _action?.Invoke(parameter);
+#pragma warning disable CS0067
         public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
     }
 }

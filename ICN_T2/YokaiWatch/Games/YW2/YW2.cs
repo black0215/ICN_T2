@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace ICN_T2.YokaiWatch.Games.YW2
 {
@@ -35,8 +36,8 @@ namespace ICN_T2.YokaiWatch.Games.YW2
         private CharaBase[]? _cachedYokaiCharacterbase;
         private CharaBase[]? _cachedNpcCharacterbase;
 
-        // Cached character name map (hash -> name) to avoid re-parsing chara_text
         private Dictionary<int, string>? _cachedCharaNameMap;
+        private Dictionary<int, string>? _cachedItemNameMap;
 
         // Constructor overload for Project Mode
         public YW2(Project project, string language = "ko")
@@ -244,6 +245,40 @@ namespace ICN_T2.YokaiWatch.Games.YW2
                     {
                         System.Diagnostics.Debug.WriteLine($"[YW2] InitFiles: {key} -> NOT FOUND");
                     }
+                }
+            }
+
+            // [FEATURE] Shop 폴더 등록 — 상점 파일 로드용
+            var shopFolder = Game.Directory.GetFolderFromFullPathSafe("data/res/shop");
+            if (shopFolder != null)
+            {
+                Files["shop"] = new GameFile(Game, "data/res/shop");
+                System.Diagnostics.Debug.WriteLine($"[YW2] InitFiles: shop -> data/res/shop");
+            }
+            else
+            {
+                string shopFound = FindFolderPath(Game.Directory, "shop");
+                if (!string.IsNullOrEmpty(shopFound))
+                {
+                    Files["shop"] = new GameFile(Game, shopFound);
+                    System.Diagnostics.Debug.WriteLine($"[YW2] InitFiles: shop -> {shopFound}");
+                }
+            }
+
+            // [FEATURE] Map Encounter 폴더 등록 — 인카운터 및 보물상자 파일 로드용
+            var mapEncounterFolder = Game.Directory.GetFolderFromFullPathSafe("data/res/map");
+            if (mapEncounterFolder != null)
+            {
+                Files["map_encounter"] = new GameFile(Game, "data/res/map");
+                System.Diagnostics.Debug.WriteLine($"[YW2] InitFiles: map_encounter -> data/res/map");
+            }
+            else
+            {
+                string mapFound = FindFolderPath(Game.Directory, "map");
+                if (!string.IsNullOrEmpty(mapFound))
+                {
+                    Files["map_encounter"] = new GameFile(Game, mapFound);
+                    System.Diagnostics.Debug.WriteLine($"[YW2] InitFiles: map_encounter -> {mapFound}");
                 }
             }
 
@@ -669,6 +704,138 @@ namespace ICN_T2.YokaiWatch.Games.YW2
             return nameMap;
         }
 
+        public Dictionary<int, string> GetItemNameMap()
+        {
+            if (_cachedItemNameMap != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Perf] YW2.GetItemNameMap cache-hit: {_cachedItemNameMap.Count} entries");
+                return _cachedItemNameMap;
+            }
+
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            var nameMap = new Dictionary<int, string>();
+
+            try
+            {
+                if (Files == null || !Files.ContainsKey("item_text"))
+                {
+                    System.Diagnostics.Debug.WriteLine("[YW2.GetItemNameMap] item_text not found in Files");
+                    _cachedItemNameMap = nameMap;
+                    return nameMap;
+                }
+
+                var gf = Files["item_text"];
+                var vf = gf.GetStream();
+                if (vf == null)
+                {
+                    _cachedItemNameMap = nameMap;
+                    return nameMap;
+                }
+
+                byte[] data = vf.ByteContent ?? vf.ReadWithoutCaching();
+                if (data == null || data.Length == 0)
+                {
+                    _cachedItemNameMap = nameMap;
+                    return nameMap;
+                }
+
+                var textObj = new T2bþ(data);
+
+                foreach (var kv in textObj.Nouns)
+                {
+                    if (kv.Value.Strings != null && kv.Value.Strings.Count > 0 && !string.IsNullOrEmpty(kv.Value.Strings[0].Text))
+                    {
+                        nameMap[kv.Key] = kv.Value.Strings[0].Text;
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[Perf] YW2.GetItemNameMap: parsed {nameMap.Count} names in {timer.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetItemNameMap] Error: {ex.Message}");
+            }
+
+            _cachedItemNameMap = nameMap;
+            return nameMap;
+        }
+
+        private Dictionary<int, string>? _cachedItemFullNameMap;
+
+        /// <summary>
+        /// ItemHash → Name (from item_config ItemHash + item_text NameHash → name)
+        /// combine_config의 아이템 해시는 ItemHash (NameHash와 다름).
+        /// </summary>
+        public Dictionary<int, string> GetItemFullNameMap()
+        {
+            if (_cachedItemFullNameMap != null) return _cachedItemFullNameMap;
+
+            var result = new Dictionary<int, string>();
+
+            try
+            {
+                // 1. item_text로부터 NameHash → name 딕셔너리 확보
+                var nameMap = GetItemNameMap(); // NameHash → name
+
+                // 2. item_config에서 ItemHash + NameHash 쌍 파싱
+                if (!Files.ContainsKey("item_config"))
+                {
+                    System.Diagnostics.Debug.WriteLine("[YW2.GetItemFullNameMap] item_config not found in Files");
+                    _cachedItemFullNameMap = result;
+                    return result;
+                }
+
+                var gf = Files["item_config"];
+                var vf = gf.GetStream();
+                if (vf == null) { _cachedItemFullNameMap = result; return result; }
+
+                byte[] data = vf.ByteContent ?? vf.ReadWithoutCaching();
+                if (data == null || data.Length == 0) { _cachedItemFullNameMap = result; return result; }
+
+                CfgBin cfg = new CfgBin();
+                cfg.Open(data);
+
+                // item_config에는 ITEM_EQUIPMENT_BEGIN, ITEM_SOUL_BEGIN, ITEM_CONSUME_BEGIN 등
+                string[] entryNames = { "ITEM_EQUIPMENT_BEGIN", "ITEM_SOUL_BEGIN", "ITEM_CONSUME_BEGIN" };
+
+                foreach (var entryName in entryNames)
+                {
+                    var entries = cfg.Entries
+                        .Where(x => x.GetName() == entryName)
+                        .SelectMany(x => x.Children)
+                        .ToList();
+
+                    foreach (var entry in entries)
+                    {
+                        try
+                        {
+                            // Variables[0] = ItemHash (int), Variables[1] = NameHash (int)
+                            var vars = entry.Variables;
+                            if (vars == null || vars.Count < 2) continue;
+
+                            int itemHash = Convert.ToInt32(vars[0].Value);
+                            int nameHash = Convert.ToInt32(vars[1].Value);
+
+                            if (nameMap.TryGetValue(nameHash, out var itemName))
+                            {
+                                result[itemHash] = itemName;
+                            }
+                        }
+                        catch { /* skip bad entry */ }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetItemFullNameMap] built {result.Count} ItemHash→name entries");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[YW2.GetItemFullNameMap] Error: {ex.Message}");
+            }
+
+            _cachedItemFullNameMap = result;
+            return result;
+        }
+
         // --- Logic Implementation (IGame) ---
 
         // Helper to find file content (레거시와 동일: StartsWith 방식 폴백)
@@ -1025,6 +1192,68 @@ namespace ICN_T2.YokaiWatch.Games.YW2
             }
         }
 
+        // [New] Fusions
+        public ICombineConfig[] GetFusions()
+        {
+            var shopFolder = Game.Directory.GetFolderFromFullPathSafe("data/res/shop");
+            if (shopFolder == null) return new ICombineConfig[0];
+
+            string matchedFile = shopFolder.Files.Keys
+                .Where(x => x.StartsWith("combine_config", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x).FirstOrDefault();
+
+            if (matchedFile == null) return new ICombineConfig[0];
+
+            var vf = Game.Directory.GetFileStreamFromFullPath($"data/res/shop/{matchedFile}");
+            if (vf == null) return new ICombineConfig[0];
+
+            byte[] data = vf.ByteContent ?? vf.ReadWithoutCaching();
+            if (data == null) return new ICombineConfig[0];
+
+            CfgBin cfg = new CfgBin();
+            cfg.Open(data);
+
+            return cfg.Entries
+                .Where(x => x.GetName() == "COMBINE_INFO_BEGIN")
+                .SelectMany(x => x.Children)
+                .Select(x => x.ToClass<CombineConfig>())
+                .ToArray();
+        }
+
+        public void SaveFusions(ICombineConfig[] combineConfigs)
+        {
+            var shopFolder = Game.Directory.GetFolderFromFullPathSafe("data/res/shop");
+            if (shopFolder == null) return;
+
+            string matchedFile = shopFolder.Files.Keys
+                .Where(x => x.StartsWith("combine_config", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x).FirstOrDefault();
+
+            if (matchedFile == null) return;
+
+            var vf = Game.Directory.GetFileStreamFromFullPath($"data/res/shop/{matchedFile}");
+            if (vf == null) return;
+
+            CfgBin cfg = new CfgBin();
+            cfg.Open(vf.ByteContent ?? vf.ReadWithoutCaching());
+
+            CombineConfig[] formatCombineConfigs = combineConfigs.OfType<CombineConfig>().ToArray();
+
+            cfg.ReplaceEntry("COMBINE_INFO_BEGIN", "COMBINE_INFO_", formatCombineConfigs);
+            vf.ByteContent = cfg.Save();
+
+            if (CurrentProject != null)
+            {
+                // Register manual file track to save to project
+                string internalPath = $"data/res/shop/{matchedFile}";
+                string targetPath = System.IO.Path.Combine(CurrentProject.ChangesPath, internalPath);
+
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(targetPath));
+                System.IO.File.WriteAllBytes(targetPath, vf.ByteContent);
+                System.Diagnostics.Debug.WriteLine($"[YW2] Saved combine_config to Project Changes: {targetPath}");
+            }
+        }
+
         // [Refactored] CharScale - loads from separate chara_scale file
         public CharScale[] GetCharascale()
         {
@@ -1269,7 +1498,7 @@ namespace ICN_T2.YokaiWatch.Games.YW2
             public string MapKey { get; set; } = "";
         }
 
-        private static readonly string[] EncounterRootCandidates = new[] { "data/res/map", "data/map" };
+        private static readonly string[] EncounterRootCandidates = new[] { "data/res/map", "data/map", "data/res/battle", "data/battle" };
 
         private void LogEncounter(string stage, string mapKey, string message)
         {
@@ -1661,6 +1890,12 @@ namespace ICN_T2.YokaiWatch.Games.YW2
                         continue;
                     }
 
+                    if (fileName.StartsWith("common_enc", StringComparison.OrdinalIgnoreCase))
+                    {
+                        maps.Add("common_enc");
+                        continue;
+                    }
+
                     int idx = fileName.IndexOf("_enc_", StringComparison.OrdinalIgnoreCase);
                     if (idx > 0)
                     {
@@ -1726,6 +1961,48 @@ namespace ICN_T2.YokaiWatch.Games.YW2
             catch (Exception ex)
             {
                 LogEncounter("load-error", mapName, $"{ex.GetType().Name}: {ex.Message}");
+                return (Array.Empty<Definitions.EncountTable>(), Array.Empty<Definitions.EncountSlot>());
+            }
+        }
+
+        /// <summary>
+        /// Load encounter tables/slots from raw cfg.bin bytes (e.g. for tools: common_enc table 4 export).
+        /// </summary>
+        public (Definitions.EncountTable[], Definitions.EncountSlot[]) GetMapEncounterFromBytes(byte[] data, string mapName)
+        {
+            try
+            {
+                var cfg = new CfgBin();
+                cfg.Open(data);
+                ValidateEncounterConfig(cfg, mapName);
+
+                var tableBegin = cfg.Entries.First(x => x.GetName() == "ENCOUNT_TABLE_BEGIN");
+                var slotBegin = FindEncounterSlotBeginEntry(cfg)!;
+                bool isYokaiSpot = IsYokaiSpotSlotEntry(slotBegin, mapName);
+
+                var tables = tableBegin.Children
+                    .Select(x => (Definitions.EncountTable)x.ToClass<YW2Logic.EncountTable>())
+                    .ToArray();
+
+                Definitions.EncountSlot[] slots = isYokaiSpot
+                    ? slotBegin.Children.Select(x => (Definitions.EncountSlot)x.ToClass<YW2Logic.YokaiSpotChara>()).ToArray()
+                    : slotBegin.Children.Select(x => (Definitions.EncountSlot)x.ToClass<YW2Logic.EncountChara>()).ToArray();
+
+                foreach (var table in tables)
+                {
+                    if (table.EncountOffsets == null || table.EncountOffsets.Length == 0)
+                        table.EncountOffsets = new int[6];
+                    for (int i = 0; i < table.EncountOffsets.Length; i++)
+                    {
+                        if (table.EncountOffsets[i] < -1 || table.EncountOffsets[i] >= slots.Length)
+                            table.EncountOffsets[i] = -1;
+                    }
+                }
+
+                return (tables, slots);
+            }
+            catch
+            {
                 return (Array.Empty<Definitions.EncountTable>(), Array.Empty<Definitions.EncountSlot>());
             }
         }
@@ -1994,8 +2271,612 @@ namespace ICN_T2.YokaiWatch.Games.YW2
             }
         }
 
-        public (ShopConfig[], ShopConfig[]) GetShop(string shopName) => (new ShopConfig[0], new ShopConfig[0]);
-        public void SaveShop(string shopName, ShopConfig[] shopConfigs, ShopConfig[] shopValidConditions) { }
+        public string[] GetMapWhoContainsTreasureBoxes()
+        {
+            if (Files == null || !Files.ContainsKey("map_encounter")) return new string[0];
+
+            VirtualDirectory mapEncounterFolder = Game.Directory.GetFolderFromFullPathSafe(Files["map_encounter"].Path);
+            if (mapEncounterFolder == null) return new string[0];
+
+            return mapEncounterFolder.Folders
+                .Where(folder =>
+                {
+                    var pckFile = folder.Value.Files.FirstOrDefault(x => x.Key == folder.Key + ".pck").Value;
+
+                    if (pckFile != null)
+                    {
+                        if (pckFile.ByteContent == null)
+                        {
+                            pckFile.Read();
+                        }
+
+                        if (pckFile.ByteContent != null)
+                        {
+                            XPCK mapArchive = new XPCK(pckFile.ByteContent);
+                            if (mapArchive.Directory.Files.Any(file => file.Key.StartsWith(folder.Key + "_tbox")))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                })
+                .Select(folder => folder.Key)
+                .ToArray();
+        }
+
+        public ItableDataMore[] GetTreasureBox(string mapName)
+        {
+            if (Files == null || !Files.ContainsKey("map_encounter")) return new ItableDataMore[0];
+
+            VirtualDirectory mapFolder = Game.Directory.GetFolderFromFullPathSafe(Files["map_encounter"].Path);
+            var mapFolderSpecific = mapFolder?.GetFolder(mapName);
+            if (mapFolderSpecific == null || !mapFolderSpecific.Files.ContainsKey(mapName + ".pck")) return new ItableDataMore[0];
+
+            var pckFileData = mapFolderSpecific.Files[mapName + ".pck"].ByteContent;
+            if (pckFileData == null)
+            {
+                mapFolderSpecific.Files[mapName + ".pck"].Read();
+                pckFileData = mapFolderSpecific.Files[mapName + ".pck"].ByteContent;
+            }
+
+            if (pckFileData == null) return new ItableDataMore[0];
+
+            XPCK mapArchive = new XPCK(pckFileData);
+            var tboxKeys = mapArchive.Directory.Files.Keys.Where(x => x.StartsWith(mapName + "_tbox")).OrderByDescending(x => x).ToList();
+            if (tboxKeys.Count == 0) return new ItableDataMore[0];
+            string lastTboxConfigFile = tboxKeys.First();
+
+            CfgBin tboxConfig = new CfgBin();
+
+            var cfgBinFile = mapArchive.Directory.Files[lastTboxConfigFile];
+            if (cfgBinFile.ByteContent == null)
+            {
+                cfgBinFile.Read();
+            }
+
+            if (cfgBinFile.ByteContent == null) return new ItableDataMore[0];
+
+            tboxConfig.Open(cfgBinFile.ByteContent);
+
+            return tboxConfig.Entries
+                .Where(x => x.GetName() == "ITABLE_DATA_MORE_BEGIN")
+                .SelectMany(x => x.Children)
+                .Select(x => x.ToClass<ItableDataMore>())
+                .ToArray();
+        }
+
+        public void SaveTreasureBox(string mapName, ItableDataMore[] itableDataMores)
+        {
+            if (Files == null || !Files.ContainsKey("map_encounter")) return;
+
+            VirtualDirectory mapFolder = Game.Directory.GetFolderFromFullPathSafe(Files["map_encounter"].Path);
+            var mapFolderSpecific = mapFolder?.GetFolder(mapName);
+            if (mapFolderSpecific == null || !mapFolderSpecific.Files.ContainsKey(mapName + ".pck")) return;
+
+            var pckFile = mapFolderSpecific.Files[mapName + ".pck"];
+            if (pckFile.ByteContent == null) pckFile.Read();
+            if (pckFile.ByteContent == null) return;
+
+            XPCK mapArchive = new XPCK(pckFile.ByteContent);
+            var tboxKeys = mapArchive.Directory.Files.Keys.Where(x => x.StartsWith(mapName + "_tbox")).OrderByDescending(x => x).ToList();
+            if (tboxKeys.Count == 0) return;
+            string lastTboxConfigFile = tboxKeys.First();
+
+            CfgBin tboxConfig = new CfgBin();
+            var cfgBinFile = mapArchive.Directory.Files[lastTboxConfigFile];
+            if (cfgBinFile.ByteContent == null) cfgBinFile.Read();
+            if (cfgBinFile.ByteContent == null) return;
+
+            tboxConfig.Open(cfgBinFile.ByteContent);
+
+            tboxConfig.ReplaceEntry("ITABLE_DATA_MORE_BEGIN", "ITABLE_DATA_MORE_", itableDataMores);
+
+            cfgBinFile.ByteContent = tboxConfig.Save();
+            pckFile.ByteContent = mapArchive.Save();
+        }
+
+        public CapsuleConfig[] GetCapsuleConfigs()
+        {
+            return GetCapsuleDataBundle().ItemInfos.ToArray();
+        }
+
+        public CapsuleDataBundle GetCapsuleDataBundle()
+        {
+            var bundle = new CapsuleDataBundle();
+
+            VirtualDirectory capsuleFolder = Game.Directory.GetFolderFromFullPathSafe("data/res/capsule");
+            if (capsuleFolder == null) return bundle;
+
+            var capsuleKey = capsuleFolder.Files.Keys
+                .Where(x => x.StartsWith("capsule_config", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x)
+                .FirstOrDefault();
+
+            if (string.IsNullOrEmpty(capsuleKey)) return bundle;
+
+            var capsuleStream = capsuleFolder.Files[capsuleKey];
+            if (capsuleStream.ByteContent == null) capsuleStream.Read();
+            if (capsuleStream.ByteContent == null) return bundle;
+
+            CfgBin capsuleConfigFile = new CfgBin();
+            capsuleConfigFile.Open(capsuleStream.ByteContent);
+
+            bundle.ItemInfos = ParseCapsuleItemInfos(capsuleConfigFile);
+            bundle.RateGroups = ParseCapsuleRateGroups(capsuleConfigFile);
+
+            var machineKey = capsuleFolder.Files.Keys
+                .Where(x => x.StartsWith("capsule_machine_config", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrEmpty(machineKey))
+            {
+                var machineStream = capsuleFolder.Files[machineKey];
+                if (machineStream.ByteContent == null) machineStream.Read();
+
+                if (machineStream.ByteContent != null)
+                {
+                    CfgBin machineConfigFile = new CfgBin();
+                    machineConfigFile.Open(machineStream.ByteContent);
+                    bundle.MachineGroups = ParseCapsuleMachineGroups(machineConfigFile);
+                }
+            }
+
+            return bundle;
+        }
+
+        public void SaveCapsuleConfigs(CapsuleConfig[] capsuleConfigs)
+        {
+            VirtualDirectory capsuleFolder = Game.Directory.GetFolderFromFullPathSafe("data/res/capsule");
+            if (capsuleFolder == null) return;
+
+            var capsuleKeys = capsuleFolder.Files.Keys.Where(x => x.StartsWith("capsule_config")).OrderByDescending(x => x).ToList();
+            if (capsuleKeys.Count == 0) return;
+            string lastCapsuleConfig = capsuleKeys.First();
+
+            CfgBin capsuleConfigFile = new CfgBin();
+            var vFile = capsuleFolder.Files[lastCapsuleConfig];
+            if (vFile.ByteContent == null) vFile.Read();
+            if (vFile.ByteContent == null) return;
+
+            capsuleConfigFile.Open(vFile.ByteContent);
+            capsuleConfigFile.ReplaceEntry("CAPSULE_ITEM_INFO_LIST_BEG", "CAPSULE_ITEM_INFO_", capsuleConfigs);
+
+            byte[] savedData = capsuleConfigFile.Save();
+            vFile.ByteContent = savedData;
+        }
+
+        public void SaveCapsuleDataBundle(CapsuleDataBundle bundle)
+        {
+            if (bundle == null)
+            {
+                throw new ArgumentNullException(nameof(bundle));
+            }
+
+            var itemHashes = new HashSet<int>((bundle.ItemInfos ?? new List<CapsuleConfig>()).Select(x => x.CapsuleHash));
+            var rateHashes = new HashSet<int>((bundle.RateGroups ?? new List<CapsuleRateGroup>()).Select(x => x.CoinHash));
+
+            foreach (var rateGroup in bundle.RateGroups ?? new List<CapsuleRateGroup>())
+            {
+                foreach (var slot in rateGroup.Slots ?? new List<CapsuleRateSlot>())
+                {
+                    if (!itemHashes.Contains(slot.CapsuleHash))
+                    {
+                        throw new InvalidOperationException(
+                            $"CAPSULE_RATE_INFO_DATA references missing CAPSULE_ITEM_INFO. CapsuleHash=0x{slot.CapsuleHash:X8}");
+                    }
+                }
+            }
+
+            foreach (var machineGroup in bundle.MachineGroups ?? new List<CapsuleMachineGroup>())
+            {
+                foreach (var route in machineGroup.Routes ?? new List<CapsuleMachineRoute>())
+                {
+                    if (!rateHashes.Contains(route.CoinHash))
+                    {
+                        throw new InvalidOperationException(
+                            $"CAPSULE_MACHINE_CONFIG_INFO_DATA references missing CAPSULE_RATE_INFO. CoinHash=0x{route.CoinHash:X8}");
+                    }
+                }
+            }
+
+            VirtualDirectory capsuleFolder = Game.Directory.GetFolderFromFullPathSafe("data/res/capsule");
+            if (capsuleFolder == null) return;
+
+            var capsuleKey = capsuleFolder.Files.Keys
+                .Where(x => x.StartsWith("capsule_config", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x)
+                .FirstOrDefault();
+            if (string.IsNullOrEmpty(capsuleKey)) return;
+
+            var capsuleStream = capsuleFolder.Files[capsuleKey];
+            if (capsuleStream.ByteContent == null) capsuleStream.Read();
+            if (capsuleStream.ByteContent == null) return;
+
+            CfgBin capsuleConfigFile = new CfgBin();
+            capsuleConfigFile.Open(capsuleStream.ByteContent);
+            capsuleConfigFile.ReplaceEntry(
+                "CAPSULE_ITEM_INFO_LIST_BEG",
+                "CAPSULE_ITEM_INFO_",
+                (bundle.ItemInfos ?? new List<CapsuleConfig>()).ToArray());
+
+            var existingRateList = capsuleConfigFile.Entries.FirstOrDefault(x => x.GetName() == "CAPSULE_RATE_INFO_LIST_BEG");
+            var rebuiltRateList = BuildCapsuleRateInfoListEntry(existingRateList, bundle.RateGroups ?? new List<CapsuleRateGroup>());
+            capsuleConfigFile.ReplaceEntry("CAPSULE_RATE_INFO_LIST_BEG", rebuiltRateList);
+            capsuleStream.ByteContent = capsuleConfigFile.Save();
+
+            var machineKey = capsuleFolder.Files.Keys
+                .Where(x => x.StartsWith("capsule_machine_config", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x)
+                .FirstOrDefault();
+
+            if (string.IsNullOrEmpty(machineKey))
+            {
+                return;
+            }
+
+            var machineStream = capsuleFolder.Files[machineKey];
+            if (machineStream.ByteContent == null) machineStream.Read();
+            if (machineStream.ByteContent == null) return;
+
+            CfgBin machineConfigFile = new CfgBin();
+            machineConfigFile.Open(machineStream.ByteContent);
+
+            var existingMachineList = machineConfigFile.Entries.FirstOrDefault(x => x.GetName() == "CAPSULE_MACHINE_CONFIG_INFO_LIST_BEG");
+            var rebuiltMachineList = BuildCapsuleMachineInfoListEntry(existingMachineList, bundle.MachineGroups ?? new List<CapsuleMachineGroup>());
+            machineConfigFile.ReplaceEntry("CAPSULE_MACHINE_CONFIG_INFO_LIST_BEG", rebuiltMachineList);
+            machineStream.ByteContent = machineConfigFile.Save();
+        }
+
+        private static List<CapsuleConfig> ParseCapsuleItemInfos(CfgBin capsuleConfigFile)
+        {
+            var entry = capsuleConfigFile.Entries.FirstOrDefault(x => x.GetName() == "CAPSULE_ITEM_INFO_LIST_BEG");
+            if (entry == null) return new List<CapsuleConfig>();
+
+            return entry.Children
+                .Where(x => x.GetName() == "CAPSULE_ITEM_INFO")
+                .Select(x => x.ToClass<CapsuleConfig>())
+                .ToList();
+        }
+
+        private static List<CapsuleRateGroup> ParseCapsuleRateGroups(CfgBin capsuleConfigFile)
+        {
+            var groups = new List<CapsuleRateGroup>();
+            var entry = capsuleConfigFile.Entries.FirstOrDefault(x => x.GetName() == "CAPSULE_RATE_INFO_LIST_BEG");
+            if (entry == null) return groups;
+
+            for (int i = 0; i < entry.Children.Count; i++)
+            {
+                var header = entry.Children[i];
+                if (header.GetName() != "CAPSULE_RATE_INFO")
+                {
+                    continue;
+                }
+
+                var group = new CapsuleRateGroup
+                {
+                    CoinHash = GetIntVariable(header, 0),
+                    CoinId = GetIntVariable(header, 1),
+                    Slots = new List<CapsuleRateSlot>()
+                };
+
+                if (i + 1 < entry.Children.Count && entry.Children[i + 1].GetName() == "CAPSULE_RATE_INFO_DATA_LIST_BEG")
+                {
+                    var dataList = entry.Children[i + 1];
+                    foreach (var slotEntry in dataList.Children.Where(x => x.GetName() == "CAPSULE_RATE_INFO_DATA"))
+                    {
+                        group.Slots.Add(new CapsuleRateSlot
+                        {
+                            CapsuleHash = GetIntVariable(slotEntry, 0),
+                            RateWeight = GetIntVariable(slotEntry, 1),
+                            Unk2 = GetIntVariable(slotEntry, 2),
+                            Unk3 = GetIntVariable(slotEntry, 3)
+                        });
+                    }
+
+                    i++;
+                }
+
+                groups.Add(group);
+            }
+
+            return groups;
+        }
+
+        private static List<CapsuleMachineGroup> ParseCapsuleMachineGroups(CfgBin machineConfigFile)
+        {
+            var groups = new List<CapsuleMachineGroup>();
+            var entry = machineConfigFile.Entries.FirstOrDefault(x => x.GetName() == "CAPSULE_MACHINE_CONFIG_INFO_LIST_BEG");
+            if (entry == null) return groups;
+
+            for (int i = 0; i < entry.Children.Count; i++)
+            {
+                var header = entry.Children[i];
+                if (header.GetName() != "CAPSULE_MACHINE_CONFIG_INFO")
+                {
+                    continue;
+                }
+
+                var group = new CapsuleMachineGroup
+                {
+                    MachineHash = GetIntVariable(header, 0),
+                    Routes = new List<CapsuleMachineRoute>()
+                };
+
+                if (i + 1 < entry.Children.Count && entry.Children[i + 1].GetName() == "CAPSULE_MACHINE_CONFIG_INFO_DATA_LIST_BEG")
+                {
+                    var dataList = entry.Children[i + 1];
+                    foreach (var routeEntry in dataList.Children.Where(x => x.GetName() == "CAPSULE_MACHINE_CONFIG_INFO_DATA"))
+                    {
+                        group.Routes.Add(new CapsuleMachineRoute
+                        {
+                            RouteHash = GetIntVariable(routeEntry, 0),
+                            RouteMode = GetIntVariable(routeEntry, 1),
+                            CoinHash = GetIntVariable(routeEntry, 2),
+                            Unk4 = GetIntVariable(routeEntry, 3)
+                        });
+                    }
+
+                    i++;
+                }
+
+                groups.Add(group);
+            }
+
+            return groups;
+        }
+
+        private static Entry BuildCapsuleRateInfoListEntry(Entry? existingEntry, List<CapsuleRateGroup> groups)
+        {
+            var root = existingEntry?.Clone()
+                ?? new Entry(
+                    "CAPSULE_RATE_INFO_LIST_BEG",
+                    new List<Variable> { new Variable(EntryType.Int, 0) },
+                    Encoding.UTF8,
+                    true);
+
+            var normalizedGroups = groups ?? new List<CapsuleRateGroup>();
+            SetEntryCount(root, normalizedGroups.Count);
+            root.Children.Clear();
+
+            var headerTemplate = existingEntry?.Children.FirstOrDefault(x => x.GetName() == "CAPSULE_RATE_INFO");
+            var dataListTemplate = existingEntry?.Children.FirstOrDefault(x => x.GetName() == "CAPSULE_RATE_INFO_DATA_LIST_BEG");
+            var dataTemplate = dataListTemplate?.Children.FirstOrDefault(x => x.GetName() == "CAPSULE_RATE_INFO_DATA");
+
+            for (int groupIndex = 0; groupIndex < normalizedGroups.Count; groupIndex++)
+            {
+                var group = normalizedGroups[groupIndex] ?? new CapsuleRateGroup();
+                var slots = group.Slots ?? new List<CapsuleRateSlot>();
+
+                var header = headerTemplate?.Clone()
+                    ?? new Entry($"CAPSULE_RATE_INFO_{groupIndex}", new List<Variable>(), root.Encoding);
+                header.Name = $"CAPSULE_RATE_INFO_{groupIndex}";
+                header.Children.Clear();
+                SetEntryInts(header, group.CoinHash, group.CoinId);
+                root.Children.Add(header);
+
+                var dataList = dataListTemplate?.Clone()
+                    ?? new Entry(
+                        $"CAPSULE_RATE_INFO_DATA_LIST_BEG_{groupIndex}",
+                        new List<Variable> { new Variable(EntryType.Int, 0) },
+                        root.Encoding,
+                        true);
+                dataList.Name = $"CAPSULE_RATE_INFO_DATA_LIST_BEG_{groupIndex}";
+                dataList.Children.Clear();
+                SetEntryCount(dataList, slots.Count);
+
+                for (int slotIndex = 0; slotIndex < slots.Count; slotIndex++)
+                {
+                    var slot = slots[slotIndex] ?? new CapsuleRateSlot();
+                    var slotEntry = dataTemplate?.Clone()
+                        ?? new Entry($"CAPSULE_RATE_INFO_DATA_{slotIndex}", new List<Variable>(), root.Encoding);
+                    slotEntry.Name = $"CAPSULE_RATE_INFO_DATA_{slotIndex}";
+                    slotEntry.Children.Clear();
+                    SetEntryInts(slotEntry, slot.CapsuleHash, slot.RateWeight, slot.Unk2, slot.Unk3);
+                    dataList.Children.Add(slotEntry);
+                }
+
+                root.Children.Add(dataList);
+            }
+
+            return root;
+        }
+
+        private static Entry BuildCapsuleMachineInfoListEntry(Entry? existingEntry, List<CapsuleMachineGroup> groups)
+        {
+            var root = existingEntry?.Clone()
+                ?? new Entry(
+                    "CAPSULE_MACHINE_CONFIG_INFO_LIST_BEG",
+                    new List<Variable> { new Variable(EntryType.Int, 0) },
+                    Encoding.UTF8,
+                    true);
+
+            var normalizedGroups = groups ?? new List<CapsuleMachineGroup>();
+            SetEntryCount(root, normalizedGroups.Count);
+            root.Children.Clear();
+
+            var headerTemplate = existingEntry?.Children.FirstOrDefault(x => x.GetName() == "CAPSULE_MACHINE_CONFIG_INFO");
+            var dataListTemplate = existingEntry?.Children.FirstOrDefault(x => x.GetName() == "CAPSULE_MACHINE_CONFIG_INFO_DATA_LIST_BEG");
+            var dataTemplate = dataListTemplate?.Children.FirstOrDefault(x => x.GetName() == "CAPSULE_MACHINE_CONFIG_INFO_DATA");
+
+            for (int groupIndex = 0; groupIndex < normalizedGroups.Count; groupIndex++)
+            {
+                var group = normalizedGroups[groupIndex] ?? new CapsuleMachineGroup();
+                var routes = group.Routes ?? new List<CapsuleMachineRoute>();
+
+                var header = headerTemplate?.Clone()
+                    ?? new Entry($"CAPSULE_MACHINE_CONFIG_INFO_{groupIndex}", new List<Variable>(), root.Encoding);
+                header.Name = $"CAPSULE_MACHINE_CONFIG_INFO_{groupIndex}";
+                header.Children.Clear();
+                SetEntryInts(header, group.MachineHash);
+                root.Children.Add(header);
+
+                var dataList = dataListTemplate?.Clone()
+                    ?? new Entry(
+                        $"CAPSULE_MACHINE_CONFIG_INFO_DATA_LIST_BEG_{groupIndex}",
+                        new List<Variable> { new Variable(EntryType.Int, 0) },
+                        root.Encoding,
+                        true);
+                dataList.Name = $"CAPSULE_MACHINE_CONFIG_INFO_DATA_LIST_BEG_{groupIndex}";
+                dataList.Children.Clear();
+                SetEntryCount(dataList, routes.Count);
+
+                for (int routeIndex = 0; routeIndex < routes.Count; routeIndex++)
+                {
+                    var route = routes[routeIndex] ?? new CapsuleMachineRoute();
+                    var routeEntry = dataTemplate?.Clone()
+                        ?? new Entry($"CAPSULE_MACHINE_CONFIG_INFO_DATA_{routeIndex}", new List<Variable>(), root.Encoding);
+                    routeEntry.Name = $"CAPSULE_MACHINE_CONFIG_INFO_DATA_{routeIndex}";
+                    routeEntry.Children.Clear();
+                    SetEntryInts(routeEntry, route.RouteHash, route.RouteMode, route.CoinHash, route.Unk4);
+                    dataList.Children.Add(routeEntry);
+                }
+
+                root.Children.Add(dataList);
+            }
+
+            return root;
+        }
+
+        private static int GetIntVariable(Entry entry, int index)
+        {
+            if (entry?.Variables == null || index < 0 || index >= entry.Variables.Count)
+            {
+                return 0;
+            }
+
+            try
+            {
+                return Convert.ToInt32(entry.Variables[index].Value);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static void SetEntryCount(Entry entry, int count)
+        {
+            if (entry.Variables == null)
+            {
+                entry.Variables = new List<Variable>();
+            }
+
+            if (entry.Variables.Count == 0)
+            {
+                entry.Variables.Add(new Variable(EntryType.Int, count));
+            }
+            else
+            {
+                entry.Variables[0].Type = EntryType.Int;
+                entry.Variables[0].Value = count;
+            }
+        }
+
+        private static void SetEntryInts(Entry entry, params int[] values)
+        {
+            if (entry.Variables == null)
+            {
+                entry.Variables = new List<Variable>();
+            }
+
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (entry.Variables.Count <= i)
+                {
+                    entry.Variables.Add(new Variable(EntryType.Int, values[i]));
+                }
+                else
+                {
+                    entry.Variables[i].Type = EntryType.Int;
+                    entry.Variables[i].Value = values[i];
+                }
+            }
+        }
+
+        public (ShopConfig[], ShopValidCondition[]) GetShop(string shopName)
+        {
+            GameFile shopFile;
+            if (Files.ContainsKey(shopName))
+            {
+                shopFile = Files[shopName];
+            }
+            else
+            {
+                // Fallback to searching the full path if shopName wasn't mapped directly
+                string pathStr = $"/data/res/shop/{shopName}";
+                var vFile = Game.Directory.GetFileFromFullPath(pathStr);
+                if (vFile == null) return (new ShopConfig[0], new ShopValidCondition[0]);
+                shopFile = new GameFile(Game, pathStr);
+            }
+
+            var vf = shopFile.GetStream();
+            if (vf == null) return (new ShopConfig[0], new ShopValidCondition[0]);
+
+            byte[] data = vf.ByteContent ?? vf.ReadWithoutCaching();
+            if (data == null || data.Length == 0) return (new ShopConfig[0], new ShopValidCondition[0]);
+
+            CfgBin shopCfgBin = new CfgBin();
+            shopCfgBin.Open(data);
+
+            var shopConfig = shopCfgBin.Entries
+                .Where(x => x.GetName() == "SHOP_CONFIG_INFO_BEGIN")
+                .SelectMany(x => x.Children)
+                .Select(x => x.ToClass<ShopConfig>())
+                .ToArray();
+
+            var validConfig = shopCfgBin.Entries
+                .Where(x => x.GetName() == "SHOP_VALID_CONDITION_BEGIN")
+                .SelectMany(x => x.Children)
+                .Select(x => x.ToClass<ShopValidCondition>())
+                .ToArray();
+
+            return (shopConfig, validConfig);
+        }
+
+        public void SaveShop(string shopName, ShopConfig[] shopConfigs, ShopValidCondition[] shopValidConditions)
+        {
+            GameFile shopFile;
+            if (Files.ContainsKey(shopName))
+            {
+                shopFile = Files[shopName];
+            }
+            else
+            {
+                string pathStr = $"/data/res/shop/{shopName}";
+                var vFile = Game.Directory.GetFileFromFullPath(pathStr);
+                if (vFile == null) return;
+                shopFile = new GameFile(Game, pathStr);
+            }
+
+            var vf = shopFile.GetStream();
+            if (vf == null) return;
+
+            byte[] data = vf.ByteContent ?? vf.ReadWithoutCaching();
+            if (data == null || data.Length == 0) return;
+
+            CfgBin shopCfgBin = new CfgBin();
+            shopCfgBin.Open(data);
+
+            shopCfgBin.ReplaceEntry("SHOP_CONFIG_INFO_BEGIN", "SHOP_CONFIG_INFO_", shopConfigs);
+
+            if (shopValidConditions != null && shopValidConditions.Length > 0)
+            {
+                shopCfgBin.ReplaceEntry("SHOP_VALID_CONDITION_BEGIN", "SHOP_VALID_CONDITION_", shopValidConditions);
+            }
+
+            byte[] newBytes = shopCfgBin.Save();
+
+            // Save back to virtual file system
+            vf.ByteContent = newBytes;
+
+            if (CurrentProject != null)
+            {
+                SaveToProject(shopName, newBytes);
+            }
+        }
 
         public YokaiStats[] GetBattleCharaparam() => new YokaiStats[0];
         public void SaveBattleCharaparam(YokaiStats[] battleCharaparams) { }

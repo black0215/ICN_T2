@@ -9,7 +9,7 @@ namespace ICN_T2.Logic.Level5.Image
 {
     public static class IMGC
     {
-        public static Bitmap ToBitmap(byte[] fileContent)
+        public static Bitmap? ToBitmap(byte[] fileContent)
         {
             if (fileContent == null || fileContent.Length == 0) return null;
 
@@ -63,7 +63,7 @@ namespace ICN_T2.Logic.Level5.Image
                     if (header.TileOffset + header.TileSize1 > ms.Length) return null;
 
                     reader.BaseStream.Seek(header.TileOffset, SeekOrigin.Begin);
-                    byte[] tileData = reader.ReadBytes(header.TileSize1);
+                    byte[]? tileData = reader.ReadBytes(header.TileSize1);
                     if (tileData.Length != header.TileSize1) return null;
 
                     tileData = SafeDecompress(tileData);
@@ -75,7 +75,7 @@ namespace ICN_T2.Logic.Level5.Image
                     if (imageDataOffset + header.ImageSize > ms.Length) return null;
 
                     reader.BaseStream.Seek(imageDataOffset, SeekOrigin.Begin);
-                    byte[] imageData = reader.ReadBytes(header.ImageSize);
+                    byte[]? imageData = reader.ReadBytes(header.ImageSize);
                     if (imageData.Length != header.ImageSize) return null;
 
                     imageData = SafeDecompress(imageData);
@@ -106,7 +106,7 @@ namespace ICN_T2.Logic.Level5.Image
             }
         }
 
-        private static byte[] SafeDecompress(byte[] data)
+        private static byte[]? SafeDecompress(byte[] data)
         {
             if (data == null || data.Length < 4) return data;
 
@@ -156,7 +156,7 @@ namespace ICN_T2.Logic.Level5.Image
             }
         }
 
-        private static Bitmap DecodeImage(byte[] tile, byte[] imageData, IColorFormat imgFormat, int width, int height, int bitDepth)
+        private static Bitmap? DecodeImage(byte[] tile, byte[] imageData, IColorFormat imgFormat, int width, int height, int bitDepth)
         {
             if (tile == null || tile.Length == 0 || imageData == null || imageData.Length == 0) return null;
             System.Diagnostics.Debug.WriteLine($"[IMGC.Decode] format={imgFormat.Name}, size={imgFormat.Size}, tile={tile.Length}B, img={imageData.Length}B, {width}x{height}, bpp={bitDepth}");

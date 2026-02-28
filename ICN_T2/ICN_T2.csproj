@@ -8,6 +8,19 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <DefaultItemExcludes>$(DefaultItemExcludes);..\Legacy_Forms_Backup\**;..\Albatross-legacy\**;..\_backup_visual_hierarchy_*\**;Forms\bak\**;Forms\Controls\bak\**;UI\WPF\_restore_backup_*\**;**\_backup_visual_hierarchy_*\**</DefaultItemExcludes>
+    <!-- Suppress nullable reference type warnings (CS86xx) and unused member warnings (CS0169/CS0414) -->
+    <NoWarn>$(NoWarn);CS8618;CS8600;CS8601;CS8602;CS8603;CS8604;CS8619;CS8620;CS8622;CS8625;CS0169;CS0414</NoWarn>
+  </PropertyGroup>
+
+  <!-- Single File Publish (Release) -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
   <ItemGroup>
@@ -91,6 +104,7 @@
     <Resource Include="Resources\MenuBG\**\*" />
     <Resource Include="Resources\Tribe\**\*" />
     <Resource Include="Resources\Fonts\**\*" />
+    <EmbeddedResource Include="Resources\hash_mapping_user.csv" LogicalName="ICN_T2.Resources.hash_mapping_user.csv" />
     <!-- [Phase 5] HLSL Shader Resource -->
     <Resource Include="UI\WPF\Effects\GlassRefraction.ps" />
     <None Update="Resources\Rank Icon\**\*">
@@ -106,6 +120,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Resources\PuniPuniAssets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\hash_mapping_user.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

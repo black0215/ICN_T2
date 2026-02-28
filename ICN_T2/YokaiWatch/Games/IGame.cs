@@ -3,6 +3,7 @@ using ICN_T2.Logic.Level5.Text;
 // ✅ Definitions 폴더의 클래스들을 사용하기 위해 추가
 using ICN_T2.YokaiWatch.Definitions;
 using System.Collections.Generic;
+using ICN_T2.YokaiWatch.Games.YW2.Logic;
 
 namespace ICN_T2.YokaiWatch.Games
 {
@@ -72,12 +73,24 @@ namespace ICN_T2.YokaiWatch.Games
         string[] GetMapWhoContainsEncounter();
 
         // IEncountTable -> EncountTable, IEncountChara -> EncountSlot
-        (EncountTable[], EncountSlot[]) GetMapEncounter(string mapName);
-        void SaveMapEncounter(string mapName, EncountTable[] encountTables, EncountSlot[] encountCharas);
+        (Definitions.EncountTable[], Definitions.EncountSlot[]) GetMapEncounter(string mapName);
+        void SaveMapEncounter(string mapName, Definitions.EncountTable[] encountTables, Definitions.EncountSlot[] encountCharas);
 
         // IShopConfig -> ShopConfig
-        // ShopValidCondition이 목록에 없어서 일단 ShopConfig로 통일하거나 제거해야 할 수 있습니다.
-        (ShopConfig[], ShopConfig[]) GetShop(string shopName);
-        void SaveShop(string shopName, ShopConfig[] shopConfigs, ShopConfig[] shopValidConditions);
+        // IShopValidCondition -> ShopValidCondition
+        (ShopConfig[], ShopValidCondition[]) GetShop(string shopName);
+        void SaveShop(string shopName, ShopConfig[] shopConfigs, ShopValidCondition[] shopValidConditions);
+
+        ICombineConfig[] GetFusions();
+        void SaveFusions(ICombineConfig[] combineConfigs);
+
+        // IItableDataMore -> ItableDataMore
+        string[] GetMapWhoContainsTreasureBoxes();
+        ItableDataMore[] GetTreasureBox(string mapName);
+        void SaveTreasureBox(string mapName, ItableDataMore[] itableDataMores);
+
+        // ICapsuleConfig -> CapsuleConfig
+        CapsuleConfig[] GetCapsuleConfigs();
+        void SaveCapsuleConfigs(CapsuleConfig[] capsuleConfigs);
     }
 }

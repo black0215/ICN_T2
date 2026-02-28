@@ -22,15 +22,18 @@ namespace ICN_T2.UI.WPF.ViewModels
         private readonly CharaBase? _baseInfo;
         private readonly string _name;
         private readonly Action<int>? _onChanged;
+        private readonly IGame? _game;
+        private BitmapImage? _icon;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public CharacterScaleWrapper(CharScale model, CharaBase? baseInfo, string name, Action<int>? onChanged = null)
+        public CharacterScaleWrapper(CharScale model, CharaBase? baseInfo, string name, Action<int>? onChanged = null, IGame? game = null)
         {
             _model = model;
             _baseInfo = baseInfo;
             _name = name;
             _onChanged = onChanged;
+            _game = game;
         }
 
         public CharScale Model => _model;
@@ -38,6 +41,7 @@ namespace ICN_T2.UI.WPF.ViewModels
 
         public string Name => _name;
         public int BaseHash => _model.BaseHash;
+        public BitmapImage? Icon => _icon ??= (_baseInfo != null && _game != null ? IconCache.GetYokaiIcon(_game, _baseInfo) : null);
 
         // Rank/Tribe Icon for list display
         public BitmapImage? RankIcon => _baseInfo is YokaiCharabase yk ? IconCache.GetRankIcon(yk.Rank) : null;
@@ -245,7 +249,7 @@ namespace ICN_T2.UI.WPF.ViewModels
                     name = $"Unknown ({s.BaseHash:X8})";
                 }
 
-                _allScales.Add(new CharacterScaleWrapper(s, baseInfo, name, MarkDirty));
+                _allScales.Add(new CharacterScaleWrapper(s, baseInfo, name, MarkDirty, _game));
                 _committedSnapshotByBaseHash[s.BaseHash] = CloneScale(s);
             }
             System.Diagnostics.Trace.WriteLine($"[CharacterScaleViewModel] _allScales populated: {_allScales.Count} items");

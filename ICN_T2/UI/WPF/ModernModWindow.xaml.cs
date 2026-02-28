@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reactive.Linq;
 using System.Windows;
@@ -57,8 +57,11 @@ namespace ICN_T2.UI.WPF
         private int _activeToolTransitionVersion;
         private DateTime _bookOpenCompletedAtUtc = DateTime.MinValue;
         private DateTime _lastSteppedPathLogAtUtc = DateTime.MinValue;
+
+#pragma warning disable CS0414
         private bool _toolPanelAttachRetryPending;
         private int _toolPanelAttachRetryCount;
+#pragma warning restore CS0414
         private const int ToolPanelAttachMaxRetries = 6;
         private bool _isToolLayoutLocked;
         private bool _isToolLayoutFinalized;
@@ -736,9 +739,7 @@ namespace ICN_T2.UI.WPF
         // 애니메이션 상태 저장용
         private System.Windows.Controls.Button? _activeTransitionButton;
         private FrameworkElement? _activeTransitionOriginElement;
-        private Thickness _activeTransitionStartMargin;
-        private double _activeTransitionWidth;
-        private double _activeTransitionHeight;
+
         private bool _isSelectionFinished;
 
         // RecoverFromSelection 취소용 CTS (백 애니메이션 중 다른 버튼 누를 때 즉시 중단)
@@ -773,7 +774,7 @@ namespace ICN_T2.UI.WPF
         #region 레이아웃 - 동적 보간 계산 (CS 전용)
         // 배경 형태 보간용 (StepProgress 기반)
         private double _sidebarStartX = AnimationConfig.Background_SidebarStartX; // 프로젝트 메뉴: 사이드바 너비 (보간 시작점)
-        private double _sidebarTargetX = 105.0;          // 모딩/도구 메뉴: 사이드바 너비 (보간 끝점)
+
 
         // 배경 외관 동적 계산
         private double _riserMaxHeight = AnimationConfig.Background_RiserMaxHeight; // 도구창 최대 상승 높이 (현재 미사용)
@@ -1245,6 +1246,11 @@ namespace ICN_T2.UI.WPF
                 bool shouldShowCharacterScale = false;
                 bool shouldShowYokaiStats = false;
                 bool shouldShowEncounterEditor = false;
+                bool shouldShowEvolutionEditor = false;
+                bool shouldShowFusionEditor = false;
+                bool shouldShowShopEditor = false;
+                bool shouldShowTreasureBox = false;
+                bool shouldShowCrankakai = false;
 
                 if (_activeTransitionButton?.DataContext is ICN_T2.UI.WPF.ViewModels.ModdingToolViewModel vmReveal)
                 {
@@ -1268,7 +1274,31 @@ namespace ICN_T2.UI.WPF
                         shouldShowEncounterEditor = true;
                         PrepareEncounterEditorContentForReveal();
                     }
-
+                    else if (vmReveal.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.EvolutionEditor)
+                    {
+                        shouldShowEvolutionEditor = true;
+                        PrepareEvolutionEditorContentForReveal();
+                    }
+                    else if (vmReveal.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.FusionEditor)
+                    {
+                        shouldShowFusionEditor = true;
+                        PrepareFusionEditorContentForReveal();
+                    }
+                    else if (vmReveal.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.ShopEditor)
+                    {
+                        shouldShowShopEditor = true;
+                        PrepareShopEditorContentForReveal();
+                    }
+                    else if (vmReveal.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.TreasureBox)
+                    {
+                        shouldShowTreasureBox = true;
+                        PrepareTreasureBoxContentForReveal();
+                    }
+                    else if (vmReveal.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.Crankakai)
+                    {
+                        shouldShowCrankakai = true;
+                        PrepareCrankakaiContentForReveal();
+                    }
                 }
 
                 // 배경 확장 완료 대기
@@ -1294,6 +1324,16 @@ namespace ICN_T2.UI.WPF
                     fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(YokaiStatsContent)));
                 if (shouldShowEncounterEditor && EncounterEditorContent != null && EncounterEditorContent.Visibility == Visibility.Visible)
                     fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(EncounterEditorContent)));
+                if (shouldShowEvolutionEditor && EvolutionEditorContent != null && EvolutionEditorContent.Visibility == Visibility.Visible)
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(EvolutionEditorContent)));
+                if (shouldShowFusionEditor && FusionEditorContent != null && FusionEditorContent.Visibility == Visibility.Visible)
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(FusionEditorContent)));
+                if (shouldShowShopEditor && ShopEditorContent != null && ShopEditorContent.Visibility == Visibility.Visible)
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(ShopEditorContent)));
+                if (shouldShowTreasureBox && TreasureBoxContent != null && TreasureBoxContent.Visibility == Visibility.Visible)
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(TreasureBoxContent)));
+                if (shouldShowCrankakai && CrankakaiContent != null && CrankakaiContent.Visibility == Visibility.Visible)
+                    fadeInTasks.Add(WaitObservable(BuildListEntranceAnimation(CrankakaiContent)));
 
                 if (fadeInTasks.Count > 0)
                     await System.Threading.Tasks.Task.WhenAll(fadeInTasks);
@@ -1303,6 +1343,11 @@ namespace ICN_T2.UI.WPF
                 if (shouldShowCharacterInfo && CharacterInfoContent != null) CharacterInfoContent.Opacity = 1;
                 if (shouldShowCharacterScale && CharacterScaleContent != null) CharacterScaleContent.Opacity = 1;
                 if (shouldShowYokaiStats && YokaiStatsContent != null) YokaiStatsContent.Opacity = 1;
+                if (shouldShowEvolutionEditor && EvolutionEditorContent != null) EvolutionEditorContent.Opacity = 1;
+                if (shouldShowFusionEditor && FusionEditorContent != null) FusionEditorContent.Opacity = 1;
+                if (shouldShowShopEditor && ShopEditorContent != null) ShopEditorContent.Opacity = 1;
+                if (shouldShowTreasureBox && TreasureBoxContent != null) TreasureBoxContent.Opacity = 1;
+                if (shouldShowCrankakai && CrankakaiContent != null) CrankakaiContent.Opacity = 1;
 
                 // 페이드인 완료 후 초기화 실행 (콘텐츠 채우기)
                 if (shouldShowCharacterInfo)
@@ -1313,6 +1358,16 @@ namespace ICN_T2.UI.WPF
                     _ = InitializeYokaiStatsContentAsync();
                 else if (shouldShowEncounterEditor)
                     _ = InitializeEncounterEditorContentAsync();
+                else if (shouldShowEvolutionEditor)
+                    _ = InitializeEvolutionEditorContentAsync();
+                else if (shouldShowFusionEditor)
+                    _ = InitializeFusionEditorContentAsync();
+                else if (shouldShowShopEditor)
+                    _ = InitializeShopEditorContentAsync();
+                else if (shouldShowTreasureBox)
+                    _ = InitializeTreasureBoxContentAsync();
+                else if (shouldShowCrankakai)
+                    _ = InitializeCrankakaiContentAsync();
 
                 // [REMOVED] Transition_ToolRevealDelay는 이제 배경 확장 완료 후이므로 불필요
                 // await System.Threading.Tasks.Task.Delay(AnimationConfig.Transition_ToolRevealDelay);
@@ -1325,7 +1380,12 @@ namespace ICN_T2.UI.WPF
                     if (vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.CharacterInfo &&
                         vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.CharacterScale &&
                         vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.YokaiStats &&
-                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.EncounterEditor)
+                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.EncounterEditor &&
+                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.EvolutionEditor &&
+                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.FusionEditor &&
+                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.ShopEditor &&
+                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.TreasureBox &&
+                        vmTool.MToolType != ICN_T2.UI.WPF.ViewModels.ToolType.Crankakai)
                     {
                         if (HasConnectedTool(vmTool))
                             OpenToolWindow(vmTool);
@@ -1407,6 +1467,31 @@ namespace ICN_T2.UI.WPF
                 else if (vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.YokaiStats)
                 {
                     _ = ShowYokaiStatsContentAsync();
+                    return;
+                }
+                else if (vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.EvolutionEditor)
+                {
+                    _ = ShowEvolutionEditorContentAsync();
+                    return;
+                }
+                else if (vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.FusionEditor)
+                {
+                    _ = ShowFusionEditorContentAsync();
+                    return;
+                }
+                else if (vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.ShopEditor)
+                {
+                    _ = ShowShopEditorContentAsync();
+                    return;
+                }
+                else if (vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.TreasureBox)
+                {
+                    _ = ShowTreasureBoxContentAsync();
+                    return;
+                }
+                else if (vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.Crankakai)
+                {
+                    _ = ShowCrankakaiContentAsync();
                     return;
                 }
 
@@ -1818,7 +1903,245 @@ namespace ICN_T2.UI.WPF
             System.Diagnostics.Debug.WriteLine("[ModWindow] ShowEncounterEditorContent 완료");
         }
 
-        // ----------------------------------------------------------------------------------
+        private void PrepareEvolutionEditorContentForReveal()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareEvolutionEditorContentForReveal 시작");
+            BeginToolLayoutSession("PrepareEvolutionEditorContentForReveal");
+
+            UIAnimationsRx.ClearAnimation(EvolutionEditorContent, UIElement.OpacityProperty);
+            EvolutionEditorContent.Opacity = 0;
+            EvolutionEditorContent.Visibility = Visibility.Visible;
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareEvolutionEditorContentForReveal 완료");
+        }
+
+        private async System.Threading.Tasks.Task InitializeEvolutionEditorContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeEvolutionEditorContent 시작");
+
+            if (EvolutionEditorContent.DataContext == null && CurrentGame != null)
+            {
+                // Create ViewModel if needed
+                EvolutionEditorContent.DataContext = new ICN_T2.UI.WPF.ViewModels.EvolutionViewModel(CurrentGame);
+            }
+            else if (CurrentGame == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] ERROR: CurrentGame is null. Cannot initialize EvolutionViewModel.");
+            }
+
+            // Simulate heavy init if needed or just yield
+            await System.Threading.Tasks.Task.Delay(1);
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeEvolutionEditorContent 완료");
+        }
+
+        private async System.Threading.Tasks.Task ShowEvolutionEditorContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowEvolutionEditorContent 시작");
+
+            PrepareEvolutionEditorContentForReveal();
+            await InitializeEvolutionEditorContentAsync();
+            RequestToolHostLayoutUpdate("ShowEvolutionEditorContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowEvolutionEditorContent");
+
+            await WaitObservable(BuildListEntranceAnimation(EvolutionEditorContent));
+
+            EvolutionEditorContent.Opacity = 1;
+            EvolutionEditorContent.Visibility = Visibility.Visible;
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowEvolutionEditorContent 완료");
+        }
+
+        private void PrepareFusionEditorContentForReveal()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareFusionEditorContentForReveal 시작");
+            BeginToolLayoutSession("PrepareFusionEditorContentForReveal");
+
+            UIAnimationsRx.ClearAnimation(FusionEditorContent, UIElement.OpacityProperty);
+            FusionEditorContent.Opacity = 0;
+            FusionEditorContent.Visibility = Visibility.Visible;
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareFusionEditorContentForReveal 완료");
+        }
+
+        private async System.Threading.Tasks.Task InitializeFusionEditorContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeFusionEditorContent 시작");
+
+            if (FusionEditorContent.DataContext == null && CurrentGame != null)
+            {
+                // Create ViewModel if needed
+                FusionEditorContent.DataContext = new ICN_T2.UI.WPF.ViewModels.FusionViewModel(CurrentGame);
+            }
+            else if (CurrentGame == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] ERROR: CurrentGame is null. Cannot initialize FusionViewModel.");
+            }
+
+            // Simulate heavy init if needed or just yield
+            await System.Threading.Tasks.Task.Delay(1);
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeFusionEditorContent 완료");
+        }
+
+        private async System.Threading.Tasks.Task ShowFusionEditorContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowFusionEditorContent 시작");
+
+            PrepareFusionEditorContentForReveal();
+            await InitializeFusionEditorContentAsync();
+            RequestToolHostLayoutUpdate("ShowFusionEditorContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowFusionEditorContent");
+
+            await WaitObservable(BuildListEntranceAnimation(FusionEditorContent));
+
+            FusionEditorContent.Opacity = 1;
+            FusionEditorContent.Visibility = Visibility.Visible;
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowFusionEditorContent 완료");
+        }
+
+        private void PrepareShopEditorContentForReveal()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareShopEditorContentForReveal 시작");
+            BeginToolLayoutSession("PrepareShopEditorContentForReveal");
+
+            UIAnimationsRx.ClearAnimation(ShopEditorContent, UIElement.OpacityProperty);
+            ShopEditorContent.Opacity = 0;
+            ShopEditorContent.Visibility = Visibility.Visible;
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareShopEditorContentForReveal 완료");
+        }
+
+        private async System.Threading.Tasks.Task InitializeShopEditorContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeShopEditorContent 시작");
+
+            if (ShopEditorContent.DataContext == null && CurrentGame != null)
+            {
+                ShopEditorContent.DataContext = new ICN_T2.UI.WPF.ViewModels.ShopViewModel(CurrentGame);
+            }
+            else if (CurrentGame == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] ERROR: CurrentGame is null. Cannot initialize ShopViewModel.");
+            }
+
+            await System.Threading.Tasks.Task.Delay(1);
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeShopEditorContent 완료");
+        }
+
+        private async System.Threading.Tasks.Task ShowShopEditorContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowShopEditorContent 시작");
+
+            PrepareShopEditorContentForReveal();
+            await InitializeShopEditorContentAsync();
+            RequestToolHostLayoutUpdate("ShowShopEditorContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowShopEditorContent");
+
+            await WaitObservable(BuildListEntranceAnimation(ShopEditorContent));
+
+            ShopEditorContent.Opacity = 1;
+            ShopEditorContent.Visibility = Visibility.Visible;
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowShopEditorContent 완료");
+        }
+
+        private void PrepareTreasureBoxContentForReveal()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareTreasureBoxContentForReveal 시작");
+            BeginToolLayoutSession("PrepareTreasureBoxContentForReveal");
+
+            UIAnimationsRx.ClearAnimation(TreasureBoxContent, UIElement.OpacityProperty);
+            TreasureBoxContent.Opacity = 0;
+            TreasureBoxContent.Visibility = Visibility.Visible;
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareTreasureBoxContentForReveal 완료");
+        }
+
+        private async System.Threading.Tasks.Task InitializeTreasureBoxContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeTreasureBoxContent 시작");
+
+            if (TreasureBoxContent.DataContext == null && CurrentGame != null)
+            {
+                TreasureBoxContent.DataContext = new ICN_T2.UI.WPF.ViewModels.TreasureBoxViewModel(CurrentGame);
+            }
+            else if (CurrentGame == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] ERROR: CurrentGame is null. Cannot initialize TreasureBoxViewModel.");
+            }
+
+            await System.Threading.Tasks.Task.Delay(1);
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeTreasureBoxContent 완료");
+        }
+
+        private async System.Threading.Tasks.Task ShowTreasureBoxContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowTreasureBoxContent 시작");
+
+            PrepareTreasureBoxContentForReveal();
+            await InitializeTreasureBoxContentAsync();
+            RequestToolHostLayoutUpdate("ShowTreasureBoxContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowTreasureBoxContent");
+
+            await WaitObservable(BuildListEntranceAnimation(TreasureBoxContent));
+
+            CrankakaiContent.Opacity = 1;
+            CrankakaiContent.Visibility = Visibility.Visible;
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowTreasureBoxContent 완료");
+        }
+
+        private void PrepareCrankakaiContentForReveal()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareCrankakaiContentForReveal 시작");
+            HideAllToolContents();
+            BeginToolLayoutSession("PrepareCrankakaiContentForReveal");
+
+            UIAnimationsRx.ClearAnimation(CrankakaiContent, UIElement.OpacityProperty);
+            CrankakaiContent.Opacity = 0;
+            CrankakaiContent.Visibility = Visibility.Visible;
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] PrepareCrankakaiContentForReveal 완료");
+        }
+
+        private async System.Threading.Tasks.Task InitializeCrankakaiContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeCrankakaiContent 시작");
+
+            if (CrankakaiContent.DataContext == null && CurrentGame != null)
+            {
+                CrankakaiContent.DataContext = new ICN_T2.UI.WPF.ViewModels.CrankakaiViewModel(CurrentGame);
+            }
+            else if (CurrentGame == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ModWindow] ERROR: CurrentGame is null. Cannot initialize CrankakaiViewModel.");
+            }
+
+            // 도구 패널 셰이더 연결(모든 도구뷰 공통 로직)
+            AttachToolPanelRefractionEffects();
+            AttachToolInteractiveRefractionEffects();
+
+            await System.Threading.Tasks.Task.Delay(1);
+
+            System.Diagnostics.Debug.WriteLine("[ModWindow] InitializeCrankakaiContent 완료");
+        }
+
+        private async System.Threading.Tasks.Task ShowCrankakaiContentAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowCrankakaiContent 시작");
+
+            PrepareCrankakaiContentForReveal();
+            await InitializeCrankakaiContentAsync();
+            RequestToolHostLayoutUpdate("ShowCrankakaiContent post-init", force: true);
+            FinalizeToolLayoutOnce("ShowCrankakaiContent");
+
+            await WaitObservable(BuildListEntranceAnimation(CrankakaiContent));
+
+            CrankakaiContent.Opacity = 1;
+            CrankakaiContent.Visibility = Visibility.Visible;
+            System.Diagnostics.Debug.WriteLine("[ModWindow] ShowCrankakaiContent 완료");
+        }
+
         // [NEW] Staggered Drop-In Bounce for Modding Menu Buttons
         // 모딩 메뉴 진입 시 버튼들이 위→아래, 왼→오 순서로 가볍게 등장
         // ----------------------------------------------------------------------------------
@@ -2280,7 +2603,8 @@ namespace ICN_T2.UI.WPF
             bool anyToolVisible = CharacterInfoContent.Visibility == Visibility.Visible ||
                                   CharacterScaleContent.Visibility == Visibility.Visible ||
                                   YokaiStatsContent.Visibility == Visibility.Visible ||
-                                  EncounterEditorContent.Visibility == Visibility.Visible;
+                                  EncounterEditorContent.Visibility == Visibility.Visible ||
+                                  CrankakaiContent.Visibility == Visibility.Visible;
             if (!anyToolVisible) return;
             if (_navStack.Count == 0 || _navStack.Peek().State != NavState.ToolWindow) return;
 
@@ -2300,7 +2624,10 @@ namespace ICN_T2.UI.WPF
             var parent = CharacterInfoContent.Parent as FrameworkElement
                 ?? CharacterScaleContent.Parent as FrameworkElement
                 ?? YokaiStatsContent.Parent as FrameworkElement
-                ?? EncounterEditorContent.Parent as FrameworkElement;
+                ?? EncounterEditorContent.Parent as FrameworkElement
+                ?? EvolutionEditorContent.Parent as FrameworkElement
+                ?? FusionEditorContent.Parent as FrameworkElement
+                ?? CrankakaiContent.Parent as FrameworkElement;
             if (parent == null || parent.ActualWidth <= 0 || parent.ActualHeight <= 0) return;
 
             double headerHeight = Math.Max(AnimationConfig.Header_MinHeight, TxtMainHeader.ActualHeight);
@@ -2357,6 +2684,54 @@ namespace ICN_T2.UI.WPF
                     AnimationConfig.ToolHost_BottomPadding);
             EncounterEditorContent.ClearValue(FrameworkElement.WidthProperty);
             EncounterEditorContent.ClearValue(FrameworkElement.HeightProperty);
+
+            // Evolution Editor
+            if (EvolutionEditorContent.Parent is Canvas)
+                Canvas.SetTop(EvolutionEditorContent, contentTop);
+            else
+                EvolutionEditorContent.Margin = new Thickness(
+                    AnimationConfig.ToolHost_LeftPadding,
+                    contentTop,
+                    AnimationConfig.ToolHost_RightPadding,
+                    AnimationConfig.ToolHost_BottomPadding);
+            EvolutionEditorContent.ClearValue(FrameworkElement.WidthProperty);
+            EvolutionEditorContent.ClearValue(FrameworkElement.HeightProperty);
+
+            // Fusion Editor
+            if (FusionEditorContent.Parent is Canvas)
+                Canvas.SetTop(FusionEditorContent, contentTop);
+            else
+                FusionEditorContent.Margin = new Thickness(
+                    AnimationConfig.ToolHost_LeftPadding,
+                    contentTop,
+                    AnimationConfig.ToolHost_RightPadding,
+                    AnimationConfig.ToolHost_BottomPadding);
+            FusionEditorContent.ClearValue(FrameworkElement.WidthProperty);
+            FusionEditorContent.ClearValue(FrameworkElement.HeightProperty);
+
+            // Shop Editor
+            if (ShopEditorContent.Parent is Canvas)
+                Canvas.SetTop(ShopEditorContent, contentTop);
+            else
+                ShopEditorContent.Margin = new Thickness(
+                    AnimationConfig.ToolHost_LeftPadding,
+                    contentTop,
+                    AnimationConfig.ToolHost_RightPadding,
+                    AnimationConfig.ToolHost_BottomPadding);
+            ShopEditorContent.ClearValue(FrameworkElement.WidthProperty);
+            ShopEditorContent.ClearValue(FrameworkElement.HeightProperty);
+
+            // Crank-a-kai Editor
+            if (CrankakaiContent.Parent is Canvas)
+                Canvas.SetTop(CrankakaiContent, contentTop);
+            else
+                CrankakaiContent.Margin = new Thickness(
+                    AnimationConfig.ToolHost_LeftPadding,
+                    contentTop,
+                    AnimationConfig.ToolHost_RightPadding,
+                    AnimationConfig.ToolHost_BottomPadding);
+            CrankakaiContent.ClearValue(FrameworkElement.WidthProperty);
+            CrankakaiContent.ClearValue(FrameworkElement.HeightProperty);
         }
 
         private void LeftSidebarBorder_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -2398,20 +2773,39 @@ namespace ICN_T2.UI.WPF
             EncounterEditorContent.Visibility = Visibility.Collapsed;
             EncounterEditorContent.Opacity = 0;
 
+            EvolutionEditorContent.Visibility = Visibility.Collapsed;
+            EvolutionEditorContent.Opacity = 0;
+
+            FusionEditorContent.Visibility = Visibility.Collapsed;
+            FusionEditorContent.Opacity = 0;
+
+            ShopEditorContent.Visibility = Visibility.Collapsed;
+            ShopEditorContent.Opacity = 0;
+
+            TreasureBoxContent.Visibility = Visibility.Collapsed;
+            TreasureBoxContent.Opacity = 0;
+
+            CrankakaiContent.Visibility = Visibility.Collapsed;
+            CrankakaiContent.Opacity = 0;
+
             // Hide other future tools here
         }
 
         private static bool HasConnectedTool(ICN_T2.UI.WPF.ViewModels.ModdingToolViewModel vm)
         {
-            // Connected tools:
-            // Index 1: Character Info
-            // Index 2: Character Scale
-            // Index 3: Yokai Stats
-            // Index 4: Encounter Editor
-            return vm.IconIndex == 1 ||
-                   vm.IconIndex == 2 ||
-                   vm.IconIndex == 3 ||
-                   vm.IconIndex == 4;
+            // Index 4: Evolution Editor
+            // Index 5: Encounter Editor
+            // Index 16: Fusion Editor // (Wait, I'll update the index check to cover larger index range or check ToolType)
+            return vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.CharacterInfo ||
+                   vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.CharacterScale ||
+                   vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.YokaiStats ||
+                   vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.EvolutionEditor ||
+                   vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.EncounterEditor ||
+                   vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.FusionEditor ||
+                   vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.ShopEditor ||
+                   vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.TreasureBox ||
+                   vm.MToolType == ICN_T2.UI.WPF.ViewModels.ToolType.Crankakai ||
+                   vm.IconIndex >= 1 && vm.IconIndex <= 6;
         }
 
         private void SetToolEmptyToolbar(bool showOnlyBack, bool fadeIn = true)
@@ -3573,7 +3967,8 @@ namespace ICN_T2.UI.WPF
             bool anyToolVisible = (CharacterInfoContent?.Visibility == Visibility.Visible) ||
                                   (CharacterScaleContent?.Visibility == Visibility.Visible) ||
                                   (YokaiStatsContent?.Visibility == Visibility.Visible) ||
-                                  (EncounterEditorContent?.Visibility == Visibility.Visible);
+                                  (EncounterEditorContent?.Visibility == Visibility.Visible) ||
+                                  (CrankakaiContent?.Visibility == Visibility.Visible);
 
             if (MainContentRefractionLayer != null)
             {
@@ -3825,14 +4220,14 @@ namespace ICN_T2.UI.WPF
         {
             System.Diagnostics.Debug.WriteLine($"[ModWindow] ExecuteTool 호출됨: index={index}, parameter={parameter?.GetType().Name} (한글)");
 
-            if (CurrentGame == null && index != 11)
+            if (CurrentGame == null && index != 10)
             {
                 System.Diagnostics.Debug.WriteLine($"[ModWindow] CurrentGame이 null이므로 UI 데모 모드로 진행 (한글)");
                 // Bypass for UI demo
             }
 
             // Full Save is a menu action, not a tool screen.
-            if (index == 10)
+            if (index == 9)
             {
                 if (parameter is System.Windows.Controls.Button saveButton)
                 {
@@ -3855,7 +4250,7 @@ namespace ICN_T2.UI.WPF
                 // Fallback switch
                 switch (index)
                 {
-                    case 11: // Settings
+                    case 10: // Battle Config (legacy fallback)
                         System.Windows.MessageBox.Show("설정 창 오픈");
                         break;
                     default:
@@ -3885,6 +4280,7 @@ namespace ICN_T2.UI.WPF
             AddPendingChangesFromContext(EncounterEditorContent?.DataContext, "encounter", "Encounter");
             AddPendingChangesFromContext(CharacterScaleContent?.DataContext, "char_scale", "Character Scale");
             AddPendingChangesFromContext(YokaiStatsContent?.DataContext, "yokai_stats", "Yokai Stats");
+            AddPendingChangesFromContext(CrankakaiContent?.DataContext, "crankakai", "Crank-a-kai");
         }
 
         private void AddPendingChangesFromContext(object? dataContext, string fallbackToolId, string fallbackDisplayName)
@@ -4299,21 +4695,21 @@ namespace ICN_T2.UI.WPF
 
         private string? ResolveVanillaSamplePath()
         {
-            var candidates = new[]
-            {
-                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ICN_T2", "sample"),
-                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sample")
-            };
+            // Single File Publish 모드에서 AppDomain.CurrentDomain.BaseDirectory는
+            // 임시 추출 폴더를 가리킬 수 있으므로, 실제 exe 위치를 기준으로 경로를 계산합니다.
+            string exeDir = System.IO.Path.GetDirectoryName(
+                Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
+                ?? AppDomain.CurrentDomain.BaseDirectory) ?? AppDomain.CurrentDomain.BaseDirectory;
 
-            foreach (var dir in candidates)
-            {
-                if (!Directory.Exists(dir)) continue;
+            string samplePath = System.IO.Path.Combine(exeDir, "sample");
 
-                string a = System.IO.Path.Combine(dir, "yw2_a.fa");
-                string lg = System.IO.Path.Combine(dir, "yw2_lg_ko.fa");
+            if (Directory.Exists(samplePath))
+            {
+                string a = System.IO.Path.Combine(samplePath, "yw2_a.fa");
+                string lg = System.IO.Path.Combine(samplePath, "yw2_lg_ko.fa");
                 if (File.Exists(a) && File.Exists(lg))
                 {
-                    return dir;
+                    return samplePath;
                 }
             }
 

@@ -8,7 +8,8 @@
              d:DesignHeight="650" d:DesignWidth="1100"
              ClipToBounds="False"
              Background="Transparent"
-             TextElement.Foreground="#1F1F1F">
+             TextElement.Foreground="#1F1F1F"
+             TextElement.FontFamily="{DynamicResource GmarketSansMedium}">
 
     <UserControl.Resources>
         <ResourceDictionary>
@@ -55,7 +56,7 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0"
-                               Text="Character Scale"
+                               Text="캐릭터 비율"
                                FontSize="20"
                                FontFamily="{StaticResource GmarketSansBold}"
                                FontWeight="Bold"
@@ -119,19 +120,16 @@
                                     </Grid.ColumnDefinitions>
 
                                     <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" ClipToBounds="True" Background="#20000000" Margin="0,0,12,0">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Image Grid.Column="0" Source="{Binding RankIcon}" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
-                                            <Image Grid.Column="1" Source="{Binding TribeIcon}" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
-                                        </Grid>
+                                        <Image Source="{Binding Icon}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
                                     </Border>
 
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding BaseHash, StringFormat='ID: {0:X8}'}" FontSize="11" FontFamily="Consolas" Opacity="0.62" Margin="0,2,0,0"/>
+                                        <StackPanel Orientation="Horizontal" Opacity="0.6" Margin="0,2,0,0">
+                                            <Image Source="{Binding RankIcon}" Width="12" Height="12" Margin="0,0,4,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                                            <Image Source="{Binding TribeIcon}" Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                                            <TextBlock Text="{Binding BaseHash, StringFormat='ID: {0:X8}'}" FontSize="11" FontFamily="Consolas" VerticalAlignment="Center"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>
@@ -142,7 +140,7 @@
         </Grid>
 
         <Grid Grid.Column="2"
-              Margin="0,-5,0,-20"
+              Margin="0,-15,0,-30"
               ClipToBounds="False"
               Visibility="{Binding SelectedScale, Converter={StaticResource NullToVisibility}}">
             <Border CornerRadius="28"
@@ -200,9 +198,9 @@
                             <Border Grid.Column="0" Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="20" Padding="12" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="Body Group A" FontSize="11" FontWeight="Bold" Opacity="0.58" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Scale 1" FontSize="12" Opacity="0.78"/>
+                                    <TextBlock Text="맵" FontSize="12" Opacity="0.78"/>
                                     <TextBox Text="{Binding SelectedScale.Scale1, UpdateSourceTrigger=LostFocus, StringFormat=F3}" Style="{StaticResource ScaleValueBoxStyle}" Margin="0,4,0,8"/>
-                                    <TextBlock Text="Scale 2" FontSize="12" Opacity="0.78"/>
+                                    <TextBlock Text="동행" FontSize="12" Opacity="0.78"/>
                                     <TextBox Text="{Binding SelectedScale.Scale2, UpdateSourceTrigger=LostFocus, StringFormat=F3}" Style="{StaticResource ScaleValueBoxStyle}" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
@@ -210,9 +208,9 @@
                             <Border Grid.Column="2" Background="#40FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="20" Padding="12" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="Body Group B" FontSize="11" FontWeight="Bold" Opacity="0.58" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Scale 3" FontSize="12" Opacity="0.78"/>
+                                    <TextBlock Text="아군 전투비율" FontSize="12" Opacity="0.78"/>
                                     <TextBox Text="{Binding SelectedScale.Scale3, UpdateSourceTrigger=LostFocus, StringFormat=F3}" Style="{StaticResource ScaleValueBoxStyle}" Margin="0,4,0,8"/>
-                                    <TextBlock Text="Scale 4" FontSize="12" Opacity="0.78"/>
+                                    <TextBlock Text="적군 전투비율" FontSize="12" Opacity="0.78"/>
                                     <TextBox Text="{Binding SelectedScale.Scale4, UpdateSourceTrigger=LostFocus, StringFormat=F3}" Style="{StaticResource ScaleValueBoxStyle}" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
@@ -227,11 +225,11 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Scale 5" FontSize="12" Opacity="0.78"/>
+                                        <TextBlock Text="메뉴" FontSize="12" Opacity="0.78"/>
                                         <TextBox Text="{Binding SelectedScale.Scale5, UpdateSourceTrigger=LostFocus, StringFormat=F3}" Style="{StaticResource ScaleValueBoxStyle}" Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Scale 6" FontSize="12" Opacity="0.78"/>
+                                        <TextBlock Text="버스터즈" FontSize="12" Opacity="0.78"/>
                                         <TextBox Text="{Binding SelectedScale.Scale6, UpdateSourceTrigger=LostFocus, StringFormat=F3}" Style="{StaticResource ScaleValueBoxStyle}" Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="4">

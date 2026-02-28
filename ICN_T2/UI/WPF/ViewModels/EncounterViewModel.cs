@@ -21,11 +21,12 @@ namespace ICN_T2.UI.WPF.ViewModels
         public string Name { get; set; } = "";
         public string Path { get; set; } = "";
         public string Id { get; set; } = "";
+        public int Hash { get; set; }
 
         public string DisplayName =>
             string.IsNullOrWhiteSpace(Name) || string.Equals(Name, Id, StringComparison.OrdinalIgnoreCase)
-                ? Id
-                : $"{Name} ({Id})";
+                ? $"{Id} (0x{Hash:X8})"
+                : $"{Name} (0x{Hash:X8})";
 
         public override string ToString() => DisplayName;
     }
@@ -35,7 +36,12 @@ namespace ICN_T2.UI.WPF.ViewModels
         public string Name { get; set; } = "";
         public int ParamHash { get; set; }
 
-        public override string ToString() => string.IsNullOrWhiteSpace(Name) ? "Unknown" : Name;
+        public string DisplayName =>
+            string.IsNullOrWhiteSpace(Name)
+                ? $"Unknown (0x{ParamHash:X8})"
+                : $"{Name} (0x{ParamHash:X8})";
+
+        public override string ToString() => DisplayName;
     }
 
     public sealed class EncounterTableEntry
@@ -375,7 +381,8 @@ namespace ICN_T2.UI.WPF.ViewModels
                 {
                     Path = filename,
                     Name = resolvedName,
-                    Id = filename
+                    Id = filename,
+                    Hash = ComputeShiftJisCrc32(filename)
                 };
 
                 _mapNames[filename] = mapEntry.DisplayName;

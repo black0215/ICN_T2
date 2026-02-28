@@ -199,279 +199,232 @@ namespace ICN_T2.YokaiWatch.Games.YW2.MapTools
         public static string GetDefaultMapList()
         {
             return @"[Big Maps]
-t100g00	Unknown (Only textures inside, carried over from YW1)
-t101g00	Uptown Springdale
-t102g00	Mt. Wildwood
-t103g00	Blossom Heights
-t104g00	Downtown Springdale
-t105g00	Shopper's Row
-t106g00	Breezy Hills
-t107g00	Excellent Tower
-t120g00	Unknown (Only textures inside)
-t121g00	San Fantastico
-t130g00	Unknown (Only textures inside)
-t131g00	Harrisville
-t132g00	Harrisville Station Plaza
-t200g00	Unknown (Only textures inside)
-t201g00	Old Springdale
-t202g00	Old Mount Wildwood
-t206g00	Old Gourd Pond
-t230g00	Unknown (Only textures inside)
-t231g00	Old Harrisville
-t232g00	Old Harrisville Station Plaza
-t301g00	Sawayama Castle Town
-t302g00	Inside Sawayama Castle
-t303g00	Sekigahara Stronghold
+[Base Areas]
+t100g00	알 수 없음 (YW1 텍스처 전용)
+t101g00	진달래 윗마을
+t102g00	울창산
+t103g00	언덕마을
+t104g00	진달래 다운타운
+t105g00	심부름 골목
+t106g00	산들바람촌
+t107g00	진달래 타워
+t120g00	알 수 없음 (텍스처 전용)
+t121g00	갈매기 포구
+t130g00	알 수 없음 (텍스처 전용)
+t131g00	산들리 (산들마을)
+t132g00	산들역 앞
+t200g00	알 수 없음 (텍스처 전용)
+t201g00	진달래읍 (과거의 진달래 마을)
+t202g00	과거의 울창산
+t206g00	과거의 호리병 연못
+t230g00	알 수 없음 (텍스처 전용)
+t231g00	과거의 산들리
+t232g00	과거의 산들역 앞
+t301g00	사와 산성 아랫마을
+t302g00	사와 산성 내
+t303g00	평원진지
+
 [Interiors]
-t101i01	Nate's house F1
-t101i02	Nate's house F2
-t101i03	Katie's House F1
-t101i04	Katie's House F2
-t101i21	Banter Bakery
-t101i23	Everymart Uptown
-t101i25	Springdale Community Center
-t101i27	Piggleston Bank
-t101i29	Lambert Post Office
-t101i31	Jungle Hunter
-t101i35	Memory Store
-t101i51	Springdale Elementary 1F South
-t101i52	Springdale Elementary 1F North
-t101i53	Springdale Elementary 2F
-t101i55	Springdale Elementary 3F
-t101i58	Springdale Elementary Roof
-t101i59	Springdale Elementary Gym
-t102i01	Deserted House
-t102i02	Deserted House (Empty?)
-t102i21	Mt. Wildwood Cave
-t103i01	Bernstein House 1F
-t103i02	Bernstein House 2F
-t103i03	Bernstein House 3F
-t103i21	Timers & More
-t103i23	Candy Stop
-t103i25	Everymart Blossom Heights
-t103i31	Shoten Temple
-t103i33	Prayer's Peak Tunnel
-t103i35	Chloro-Phil Good
-t103i37	Springdale Hot Springs Lobby
-t103i38	Springdale Hot Springs Men
-t103i39	Springdale Hot Springs Female
-t103i51	Byrd House
-t103i53	Byrd House Hidden Room
-t103i60	Wayfarer Manor 101
-t103i61	Wayfarer Manor 102
-t103i62	Wayfarer Manor 103
-t103i63	Wayfarer Manor 104
-t103i64	Wayfarer Manor 105
-t103i65	Wayfarer Manor 201
-t103i66	Wayfarer Manor 202
-t103i67	Wayfarer Manor 203
-t103i68	Wayfarer Manor 204
-t103i69	Wayfarer Manor VIP Room
-t104i21	Seabreeze Tunnel
-t104i23	Frostia's Place
-t104i25	Arcadia Arcade
-t104i27	Nom Burguer
-t104i29	Fortune Hospital 1F
-t104i30	Fortune Hospital 2F
-t104i31	Foundation Academy
-t104i33	Everymart Downtown Springdale
-t104i35	Café Shanista
-t104i37	Springdale Sports Club 1F
-t104i38	Springdale Sports Club 2F
-t104i39	Springdale Sports Club 3F
-t104i41	Belly Buster Curry
-t104i51	Springdale Business Tower 1F
-t104i53	Springdale Business Tower 7F
-t104i61	Springdale Central Station
-t105i20	Springdale Flower Road
-t105i21	Settle In Bookstore
-t105i23	North Wind Ramen
-t105i25	Everymart Shopper's Row
-t105i27	Sun Pavilion
-t105i29	Toys iZ We
-t105i31	Mary's Coin Laundry
-t105i33	Superior Style
-t105i35	Whatta Find
-t105i37	Sushi Springdale
-t106i01	Archer House 1F
-t106i02	Archer House 2F
-t106i05	Stone House
-t106i07	Amy's House 1F
-t106i09	Amy's House 2F
-t106i21	Everymart Breezy Hills
-t106i23	Trophy Room
-t106i51	Wisteria Gardens Parking
-t106i52	Wisteria Gardens Entrance
-t107i01	Excellent Tower
-t107i02	Excellent Tower Elevator
-t107i03	Observation Deck
-t107i80	Test Station
-t120i01	Unknown (Textures inside are from a train)
-t121i01	Rolling Waves Meeting Hall
-t121i03	Rusty's Mart
-t121i10	Deserted House
-t121i20	Sea (Boat)
-t131i01	Grandma's House
-t131i03	Harrisville School
-t131i05	Mountain Market
-t201i01	Old Shoten Temple
-t201i03	Old Timers & More
-t201i05	Unknown (Placeholder Minimap)
-t201i10	Galleria Boulevard
-t201i20	Old Prayer's Peak Tunnel
-t231i01	Ninja Forest
-t231i03	Secret Base
-t231i05	Old Grandma's House
-t302i01	Banquet Hall
+t101i01	민호네 집 1F
+t101i02	민호네 집 2F
+t101i03	세라네 집 1F
+t101i04	세라네 집 2F
+t101i21	진달래 빵집
+t101i23	에브리마트 진달래 윗마을점
+t101i25	진달래 시민회관
+t101i27	꿀꿀 은행
+t101i29	진달래양 우체국
+t101i31	정글 헌터
+t101i35	추억 가게
+t101i51	진달래 초등학교 1F 남쪽
+t101i52	진달래 초등학교 1F 북쪽
+t101i53	진달래 초등학교 2F
+t101i55	진달래 초등학교 3F
+t101i58	진달래 초등학교 옥상
+t101i59	진달래 초등학교 체육관
+t102i01	빈집
+t102i02	빈집 (비어있음)
+t102i21	버려진 동굴
+t103i01	도균이네 집 1F
+t103i02	도균이네 집 2F
+t103i03	도균이네 집 3F
+t103i21	조기애 시계점
+t103i23	달달 막과자
+t103i25	에브리마트 언덕마을점
+t103i31	정천사
+t103i33	기도의 봉우리 터널
+t103i35	생기발랄 한방약국
+t103i37	진달래 온천 로비
+t103i38	진달래 온천 남탕
+t103i39	진달래 온천 여탕
+t103i51	새장 하우스
+t103i53	새장 하우스 숨겨진 방
+t103i60~68	방랑장 101호~204호
+t103i69	방랑장 VIP룸
+t104i21	바닷바람 터널
+t104i23	스낵 유키온나
+t104i25	아카디아 아케이드
+t104i27	냠냠버거
+t104i29	돌보미 병원 1F
+t104i30	돌보미 병원 2F
+t104i31	입시학원
+t104i33	에브리마트 진달래 다운타운점
+t104i35	카페 샨티
+t104i37	진달래 스포츠클럽 1F
+t104i38	진달래 스포츠클럽 2F
+t104i39	진달래 스포츠클럽 3F
+t104i41	배불러 카레
+t104i51	진달래 비즈니스 타워 1F
+t104i53	진달래 비즈니스 타워 7F
+t104i61	진달래 중앙역
+t105i20	심부름 골목 상점가
+t105i21	서점
+t105i23	북풍 라멘
+t105i25	에브리마트 심부름 골목점
+t105i27	골동품점
+t105i29	장난감 가게
+t105i31	코인 세탁소
+t105i33	옷가게
+t105i35	재활용 숍
+t105i37	초밥집
+t106i01	곰이네 집 1F
+t106i02	곰이네 집 2F
+t106i05	세미네 집
+t106i07	에이미네 집 1F
+t106i09	에이미네 집 2F
+t106i21	에브리마트 산들바람점
+t106i23	트로피 룸
+t106i51	등나무 저택 주차장
+t106i52	등나무 저택 입구
+t107i01	진달래 타워
+t107i02	진달래 타워 엘리베이터
+t107i03	전망대
+t107i80	테스트 역
+t120i01	알 수 없음 (열차 내부 텍스처)
+t121i01	갈매기 포구 마을회관
+t121i03	구멍가게 (갈매기 포구)
+t121i10	빈집
+t121i20	바다 (배)
+t131i01	할머니 댁
+t131i03	산들 분교
+t131i05	산골 마켓
+t201i01	과거의 정천사
+t201i03	과거의 조기애 시계점
+t201i05	알 수 없음 (미니맵 임시데이터)
+t201i10	과거의 상점가
+t201i20	과거의 기도의 봉우리 터널
+t231i01	닌자의 숲
+t231i03	비밀기지
+t231i05	과거의 할머니 댁
+t302i01	연회장
+
 [Dungeons]
-t001d01	Paradise Springs Entrance
-t001d02	Gera Gera Land Entrance
-t001d03	Wolfit Down Entrance
-t001d05	Paradise Springs
-t001d06	Gera Gera Land
-t001d07	Wolfit Down
-t001d08	Kaibuki Theater
-t001d09	Kaibuki Theater Basement
-t001d41	Yo-kai world Entrance
-t001d42	Yo-kai world
-t001d43	Liar Mountain
-t001d44	Hooligan Road
-t001d45	Hungry Pass
-t100d00	Underground Waterway
-t101d01	Shady Back Alley
-t101d02	Lonely Waterway
-t101d02c	Lonely Waterway (Copy?)
-t101d03	The Catwalk
-t101d03c	The Catwalk (Copy?)
-t101d05	Desolate Lane
-t101d05c	Desolate Lane (Copy?)
-t102d01	Mt. Wildwood Trail
-t102d01c	Mt. Wildwood Trail (Copy?)
-t102d02	Mt. Wildwood Summit
-t102d03	Jumbo Slider
-t102d03c	Jumbo Slider (Copy?)
-t102d31	Abandoned Tunnel West
-t102d32	Abandoned Tunnel East
-t103d01	Trucked Away Lot
-t103d03	Hidden Side Street
-t103d03c	Hidden Side Street (Copy?)
-t103d11	Secret Byway
-t103d11c	Secret Byway (Copy?)
-t103d31	Old Mansion Main House
-t103d33	Old Mansion Side House
-t103d35	Old Mansion Main House Attic
-t103d36	Old Mansion Side House Attic
-t103d41	Infinite Inferno 1st Circle
-t103d42	Infinite Inferno 2nd Circle
-t103d43	Infinite Inferno 3rd Circle
-t103d44	Infinite Inferno 4th Circle
-t103d45	Infinite Inferno 5th Circle
-t103d46	Infinite Inferno 6th Circle
-t103d47	Infinite Inferno 7th Circle
-t103d48	Infinite Inferno 8th Circle
-t103d49	Infinite Inferno Time-Out Room
-t103d50	Divine paradise 1F
-t103d51	Divine paradise 2F
-t103d52	Divine paradise 3F
-t103d53	Divine paradise 4F
-t103d54	Divine paradise 5F
-t103d55	Divine paradise 6F
-t103d56	Infinite Inferno Time-Out Room Entrance
-t104d01	Academy Shortcut
-t104d03	Behind Frostia's Place
-t104d03c	Behind Frostia's Place (Copy?)
-t104d05	Delivery Bay
-t104d11	Springdale Business Tower 4F
-t104d13	Springdale Business Tower 13F
-t104d33	Construction Site 3F
-t105d01	Shopping Street Narrows
-t105d01c	Shopping Street Narrows (Copy)
-t105d11	Tranquility Apts.
-t105d12	Tranquility Apts.
-t105d13	Tranquility Apts.
-t105d14	Tranquility Apts.
-t105d15	Tranquility Apts.
-t105d16	Tranquility Apts.
-t105d17	Tranquility Apts.
-t105d18	Tranquility Apts.
-t105d19	Tranquility Apts.
-t105d20	Tranquility Apts.
-t105d21	Tranquility Apts.
-t105d22	Tranquility Apts.
-t105d23	Tranquility Apts.
-t105d24	Tranquility Apts.
-t105d25	Tranquility Apts.
-t105d26	Tranquility Apts.
-t105d41	Nocturne Hospital 1F
-t105d43	Nocturne Hospital 2F
-t105d45	Nocturne Hospital 3F
-t105d47	Nocturne Hospital Basement
-t105d48	Nocturne Hospital Basement Lab
-t106d11	Rugged Path (Yo-kai Watch 1)
-t106d11c	Mystery Way - Service Road
-t106d31	Gourd Pond Museum 1F
-t106d32	Gourd Pond Museum 2F
-t106d33	Gourd Pond Museum Vault
-t106d41	Gate Room
-t106d43	Creator Zone
-t106d45	Can-Kicking Zone 1F
-t106d46	Can-Kicking Zone 2F
-t106d47	Can-Kicking Zone 3F
-t106d49	Can-Kicking Zone Exit
-t106d51	Traffic-Light Zone 1F
-t106d52	Traffic-Light Zone 2F
-t106d53	Traffic-Light Zone 3F
-t106d54	Traffic-Light Zone Exit
-t106d56	Compunzer's Zone 1F
-t106d57	Compunzer's Zone 2F
-t106d58	Compunzer's Zone 3F
-t106d59	Compunzer's Zone Exit
-t106d61	Quiz Room 1F
-t106d62	Quiz Room 2F
-t106d63	Quiz Room 3F
-t106d64	Quiz Room Exit
-t121d01	Briny Grotto
-t121d03	Hidden Workshop
-t121d03c	Hidden Workshop (Copy?)
-t121d05	Unused river map (Has a placeholder minimap, altmost empty)
-t121d11	Seaside Cave
-t121d21	Mystery Way - Route 1
-t121d23	Mystery Way - Route 4
-t121d25	Mystery Way - Ramp
-t121d27	Mystery Way - Gogo Junction
-t121d27a	Mystery Way - Gogo Junction
-t121d27b	Mystery Way - Gogo Junction
-t121d29	Mystery Way - End Point
-t121d31	Gold-Gleaming Highway - Entrance
-t121d33	Gold-Gleaming Highway - Interchange
-t121d35	Gold-Gleaming Highway - End Point
-t121d41	C-1 Grand Prix Y
-t131d01	Rice Paddy Path
-t131d01c	Rice Paddy Path (Copy?)
-t131d02	Nokotopia
-t131d03	Fullface Rock
-t131d03c	Fullface Rock (Copy?)
-t131d04	Cicada Canyon
-t131d05	Mt. Middleton Summit
-t131d20	Infinite Tunnel
-t131d32	Infinite Tunnel Final Zone
-t131d33	Infinite Tunnel Final Zone
-t131d34	Infinite Tunnel Final Zone
-t131d35	Infinite Tunnel Final Zone
-t131d36	Neighfarious Room
-t132d01	Alley off the Plaza
-t132d01c	Alley off the Plaza (Copy?)
-t200d00	Flatpot Plains
-t201d01	Fox Shrine Road
-t201d01c	Fox Shrine Road (Copy)
-t201d03	Well Road
-t201d11	Old Springdale Ironworks
-t201d21	Sunset Manufacturing Co. Main Gate
-t201d23	Sunset Manufacturing Co. Furnace 1
-t231d01	Old Rice Paddy
-t231d03	Old Fullface Rock
-t231d04	Old Cicada Canyon
-t231d05	Old Mt. Middleton Summit
+t001d01	신선 온천 입구
+t001d02	게라게라 랜드 입구
+t001d03	먹음직 파크 입구
+t001d05	신선 온천
+t001d06	게라게라 랜드
+t001d07	먹음직 파크
+t001d08	요괴가부키 극장
+t001d09	요괴가부키 극장 지하
+t001d41	요마계 입구
+t001d42	요마계
+t001d43	거짓말쟁이 산
+t001d44	불량배의 길
+t001d45	배고픔의 고개
+t100d00	사쿠라 마을 지하 수도
+t101d01	그늘진 뒷골목
+t101d02	으슥한 수로
+t101d02c	으슥한 수로 (복사본)
+t101d03	고양이 뒷골목
+t101d03c	고양이 뒷골목 (복사본)
+t101d05	황량한 골목
+t101d05c	황량한 골목 (복사본)
+t102d01	울창산 등산로
+t102d01c	울창산 등산로 (복사본)
+t102d02	울창산 정상
+t102d03	점보 미끄럼틀
+t102d03c	점보 미끄럼틀 (복사본)
+t102d31	폐터널 서쪽
+t102d32	폐터널 동쪽
+t103d01	트럭 뒷골목
+t103d03	숨겨진 샛길
+t103d03c	숨겨진 샛길 (복사본)
+t103d11	비밀의 샛길
+t103d11c	비밀의 샛길 (복사본)
+t103d31	폐가 본채
+t103d33	폐가 별채
+t103d35	폐가 본채 다락방
+t103d36	폐가 별채 다락방
+t103d41~48	무겐 지옥 (무한지옥) 1~8계층
+t103d49	무겐 지옥 반성실
+t103d50~55	아미다 극락 1~6계층
+t103d56	무겐 지옥 반성실 입구
+t104d01	학원 지름길
+t104d03	스낵바 뒷골목
+t104d03c	스낵바 뒷골목 (복사본)
+t104d05	배달 구역
+t104d11	진달래 비즈니스 타워 4F
+t104d13	진달래 비즈니스 타워 13F
+t104d33	공사장 3F
+t105d01	상가 좁은 골목
+t105d01c	상가 좁은 골목 (복사본)
+t105d11~26	어은장 (안논 단지)
+t105d41	폐병원 1F
+t105d43	폐병원 2F
+t105d45	폐병원 3F
+t105d47	폐병원 지하
+t105d48	폐병원 지하 연구실
+t106d11	험난한 길 (요괴워치 1)
+t106d11c	수수께끼의 길 - 서비스 도로
+t106d31	호리병 연못 박물관 1F
+t106d32	호리병 연못 박물관 2F
+t106d33	호리병 연못 박물관 금고
+t106d41	게이트 룸
+t106d43	크리에이터 존
+t106d45~49	깡통차기 존 1F~출구
+t106d51~54	신호등 존 1F~출구
+t106d56~59	오답 존 1F~출구
+t106d61~64	퀴즈 룸 1F~출구
+t121d01	소금물 동굴
+t121d03	숨겨진 작업장
+t121d03c	숨겨진 작업장 (복사본)
+t121d05	미사용 강 맵
+t121d11	해변 동굴
+t121d21	수수께끼의 길 - 루트 1
+t121d23	수수께끼의 길 - 루트 4
+t121d25	수수께끼의 길 - 경사로
+t121d27	수수께끼의 길 - 고고 정션
+t121d27a	수수께끼의 길 - 고고 정션
+t121d27b	수수께끼의 길 - 고고 정션
+t121d29	수수께끼의 길 - 종점
+t121d31	금빛 고속도로 - 입구
+t121d33	금빛 고속도로 - 교차로
+t121d35	금빛 고속도로 - 종점
+t121d41	C-1 그랑프리 Y
+t131d01	논두렁 길
+t131d01c	논두렁 길 (복사본)
+t131d02	노코 마을
+t131d03	큰바위 얼굴
+t131d03c	큰바위 얼굴 (복사본)
+t131d04	매미 계곡
+t131d05	미들턴 산 정상
+t131d20	영원 터널 (엥엔 터널)
+t131d32~35	영원 터널 최종 구역
+t131d36	불길한 방
+t132d01	역 앞 골목길
+t132d01c	역 앞 골목길 (복사본)
+t200d00	가마솥 평원
+t201d01	여우신사 길
+t201d01c	여우신사 길 (복사본)
+t201d03	우물 길
+t201d11	과거 진달래 철공소
+t201d21	석양 공장 정문
+t201d23	석양 공장 제1용광로
+t231d01	과거의 논두렁 길
+t231d03	과거의 큰바위 얼굴
+t231d04	과거의 매미 계곡
+t231d05	과거의 미들턴 산 정상
 [Battle Backgrounds]
 t001b01	
 t001b02	

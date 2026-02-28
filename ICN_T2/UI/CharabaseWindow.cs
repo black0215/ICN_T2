@@ -26,9 +26,9 @@ namespace ICN_T2.UI
         [DllImport("user32.dll")] public static extern bool ReleaseCapture();        // ==========================================
         // [Game Data]
         // ==========================================
-        private IGame _game;
-        private CharaBase[] _allCharabases;
-        private CharaBase[] _filteredCharabases;
+        private IGame _game = null!;
+        private CharaBase[] _allCharabases = null!;
+        private CharaBase[] _filteredCharabases = null!;
         private CharaBase? _selectedChara;
 
         // Text (이름 매핑)
@@ -50,25 +50,25 @@ namespace ICN_T2.UI
         // ==========================================
         // [UI Components]
         // ==========================================
-        private Panel _topBar;
-        private Label _lblTitle;
-        private PictureBox _btnClose;
+        private Panel _topBar = null!;
+        private Label _lblTitle = null!;
+        private PictureBox _btnClose = null!;
 
         // Left: List
-        private Panel _listPanel;
-        private TextBox _txtSearch;
-        private Panel _filterPanel;
-        private CheckBox _chkYokai;
-        private CheckBox _chkNPC;
-        private Panel _listContainer;
-        private VScrollBar _scrollBar;
+        private Panel _listPanel = null!;
+        private TextBox _txtSearch = null!;
+        private Panel _filterPanel = null!;
+        private CheckBox _chkYokai = null!;
+        private CheckBox _chkNPC = null!;
+        private Panel _listContainer = null!;
+        private VScrollBar _scrollBar = null!;
 
         // Right: Detail
-        private Panel _detailPanel;
-        private CharabaseDetailPanel _detailView;
+        private Panel _detailPanel = null!;
+        private CharabaseDetailPanel _detailView = null!;
 
         // Bottom
-        private Button _btnSave;
+        private Button _btnSave = null!;
 
         // State
         private int _selectedIndex = -1;

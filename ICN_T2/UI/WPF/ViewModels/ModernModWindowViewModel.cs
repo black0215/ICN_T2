@@ -129,10 +129,10 @@ namespace ICN_T2.UI.WPF.ViewModels
                     IsTransitioning = true;
                     CurrentNavState = NavState.ModdingMenu;
                     HeaderText = "모딩메뉴";
-                    
+
                     // 실제 애니메이션은 View에서 AnimationService를 통해 실행
                     await System.Threading.Tasks.Task.Delay(100);
-                    
+
                     IsTransitioning = false;
                 },
                 canNavigate);
@@ -146,9 +146,9 @@ namespace ICN_T2.UI.WPF.ViewModels
                     HeaderText = "메인메뉴";
                     StepProgress = 0;
                     RiserProgress = 0;
-                    
+
                     await System.Threading.Tasks.Task.Delay(100);
-                    
+
                     IsTransitioning = false;
                 },
                 canNavigate);
@@ -160,9 +160,9 @@ namespace ICN_T2.UI.WPF.ViewModels
                     IsTransitioning = true;
                     CurrentNavState = NavState.ToolWindow;
                     HeaderText = tool.Title;
-                    
+
                     await System.Threading.Tasks.Task.Delay(100);
-                    
+
                     IsTransitioning = false;
                 },
                 canNavigate);
@@ -178,10 +178,10 @@ namespace ICN_T2.UI.WPF.ViewModels
                 {
                     System.Diagnostics.Debug.WriteLine($"[ViewModel] OpenProject Command 실행: {project.Name} (한글)");
                     IsTransitioning = true;
-                    
+
                     // 프로젝트 로드 로직 (추후 구현)
                     await LoadProject(project);
-                    
+
                     // 모딩 메뉴로 전환
                     await NavigateToModdingMenuCommand.Execute();
                 },
@@ -191,7 +191,7 @@ namespace ICN_T2.UI.WPF.ViewModels
                 async (project) =>
                 {
                     System.Diagnostics.Debug.WriteLine($"[ViewModel] DeleteProject Command 실행: {project.Name} (한글)");
-                    
+
                     // 삭제 확인 및 실행 (View에서 처리)
                     await System.Threading.Tasks.Task.CompletedTask;
                 });
@@ -216,7 +216,7 @@ namespace ICN_T2.UI.WPF.ViewModels
             try
             {
                 System.Diagnostics.Debug.WriteLine("[ViewModel] 프로젝트 목록 새로고침 시작 (한글)");
-                
+
                 ProjectManager.EnsureProjectsRoot();
                 var projects = ProjectManager.GetAvailableProjects();
 
@@ -239,10 +239,10 @@ namespace ICN_T2.UI.WPF.ViewModels
             try
             {
                 System.Diagnostics.Debug.WriteLine($"[ViewModel] 프로젝트 로드 시작: {project.Name} (한글)");
-                
+
                 // 실제 게임 파일 로드 로직 (추후 구현)
                 await System.Threading.Tasks.Task.Delay(100);
-                
+
                 System.Diagnostics.Debug.WriteLine($"[ViewModel] 프로젝트 로드 완료: {project.Name} (한글)");
             }
             catch (Exception ex)
@@ -261,14 +261,13 @@ namespace ICN_T2.UI.WPF.ViewModels
                 ("캐릭터\n비율", "Model Scale", "Adjust the scale/size of the player character."),
                 ("요괴\n능력치", "Yo-kai Stats", "Modify IVs, EVs, and base stats for Yo-kai."),
                 ("인카운터", "Encounter Editor", "Change wild Yo-kai spawns in maps."),
-                ("상점", "Shop Editor", "Edit items sold in various shops."),
-                ("아이템", "Item Editor", "Modify item properties."),
-                ("퀘스트", "Quest Editor", "Edit quest requirements and rewards."),
-                ("대화", "Text Editor", "Modify game dialogues."),
-                ("배틀", "Battle Config", "Edit battle parameters."),
-                ("맵", "Map Editor", "View and edit map entities."),
-                ("전체 저장", "Full Save", "Export the complete yw2_a.fa archive to /Export folder."),
-                ("설정", "Settings", "Tool configuration.")
+                ("요괴\n진화", "Evolution Editor", "Edit Yo-kai evolution parameters."),
+                ("합성\n에디터", "Fusion Editor", "Edit Yo-kai and item fusions."),
+                ("상점\n에디터", "Shop Editor", "Edit items sold in various shops."),
+                ("보물\n상자", "Treasure Box", "Edit rewards found in Treasure Boxes across maps."),
+                ("뽑기\n에디터", "Crank-a-kai", "Edit drops from Crank-a-kai coins."),
+                ("저장", "Text Editor", "Modify game dialogues."),
+                ("배틀", "Battle Config", "Edit battle parameters.")
             };
 
             double scale = 1.1116;
@@ -279,7 +278,7 @@ namespace ICN_T2.UI.WPF.ViewModels
             double gapX = -1.3;
             double gapY = -7.3;
 
-            for (int i = 0; i < features.Length && i < 12; i++)
+            for (int i = 0; i < features.Length && i < 11; i++)
             {
                 var feat = features[i];
                 int iconIndex = i + 1;
@@ -306,6 +305,16 @@ namespace ICN_T2.UI.WPF.ViewModels
                     vm.MToolType = ToolType.YokaiStats;
                 else if (i == 3)
                     vm.MToolType = ToolType.EncounterEditor;
+                else if (i == 4)
+                    vm.MToolType = ToolType.EvolutionEditor;
+                else if (i == 5)
+                    vm.MToolType = ToolType.FusionEditor;
+                else if (i == 6)
+                    vm.MToolType = ToolType.ShopEditor;
+                else if (i == 7)
+                    vm.MToolType = ToolType.TreasureBox;
+                else if (i == 8)
+                    vm.MToolType = ToolType.Crankakai;
 
                 ModdingTools.Add(vm);
             }

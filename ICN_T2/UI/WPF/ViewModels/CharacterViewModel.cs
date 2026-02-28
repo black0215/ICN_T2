@@ -70,8 +70,6 @@ namespace ICN_T2.UI.WPF.ViewModels
         private int? _filterRank;
         private int? _filterTribe;
         private bool? _filterIsRare;
-        private bool? _filterIsLegend;
-        private bool? _filterIsClassic;
 
         // Filter Lists (Properties)
         public ObservableCollection<FilterItem> RankFilterList { get; } = new ObservableCollection<FilterItem>();
