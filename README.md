@@ -58,32 +58,41 @@
 
 ## 📂 프로젝트 구조
 
-```
+```text
 ICN_T2/
 ├── ICN_T2/
 │   ├── UI/
-│   │   └── WPF/              # WPF 기반 메인 UI
-│   │       ├── Views/        # XAML 뷰
-│   │       ├── ViewModels/   # ViewModel (MVVM)
-│   │       ├── Themes/       # 커스텀 테마
-│   │       └── Animations/   # 애니메이션 설정
-│   ├── YokaiWatch/           # 게임 데이터 파싱 로직
-│   ├── Logic/                # 핵심 비즈니스 로직
-│   ├── Tools/                # 유틸리티 도구
+│   │   └── WPF/                    # WPF 기반 메인 UI
+│   │       ├── Views/              # XAML 뷰
+│   │       ├── ViewModels/         # MVVM ViewModel
+│   │       │   └── Parsing/        # 해시 매핑/파싱 유틸
+│   │       ├── Themes/             # 커스텀 테마
+│   │       └── Animations/         # 애니메이션 설정
+│   ├── YokaiWatch/                 # 게임 데이터 정의/파싱/저장 로직
+│   │   ├── Definitions/
+│   │   └── Games/YW2/
+│   ├── Logic/                      # 공통 비즈니스 로직
+│   ├── Tools/
+│   │   └── ReverseEngineering/     # StreetPass/VIP 분석 스크립트
 │   └── Resources/
-│       └── Fonts/            # 내장 폰트
+│       ├── Fonts/                  # 내장 폰트
+│       └── hash_mapping_user.csv   # 해시 표시명 매핑
 └── README.md
 ```
 
 ---
 
-## ✨ 주요 기능
+## ✨ 주요 기능 (업데이트)
 
-- 요괴 능력치 (HP, 공격, 방어, 속도 등) 편집
+- 요괴 능력치(HP, 공격, 방어, 속도 등) 편집
 - 기술 / 필살기 / 특성 편집
 - 대사 및 메달리움 데이터 편집
-- 인카운터 (출현 데이터) 편집
-- 커스텀 WPF UI로 쾌적한 편집 환경 제공
+- 인카운터(출현 데이터) 편집 및 로딩 안정성 개선
+- Crank-a-kai(뽑기) 편집기 추가
+- 진화(Evolution) / 합성(Fusion) 편집기 추가
+- 상점(Shop) / 보물상자(Treasure Box) 편집기 추가
+- 해시 매핑 내장화로 뽑기 목록 가독성 향상(외부 CSV fallback 지원)
+- 커스텀 WPF UI 기반의 반응형 편집 환경 제공
 
 ---
 
