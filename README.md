@@ -1,90 +1,70 @@
-# ICN_T2 — 요괴워치 2 모딩 툴
+﻿# ICN_T2
 
-> **Albatross** 프로젝트의 완전한 재탄생.  
-> WPF 기반의 현대적인 UI와 체계적인 코드 구조로 새롭게 태어났습니다.
+ICN_T2는 요괴워치 2 데이터 편집을 위한 WPF 기반 모딩 툴입니다.
 
----
+## UI 미리보기
 
-## 📌 프로젝트 소개
+<img width="1206" height="675" alt="스크린샷 2026-02-19 111044" src="https://github.com/user-attachments/assets/0cdeae89-8e62-4512-ab26-56d20a781f02" />
+<img width="1199" height="673" alt="스크린샷 2026-02-19 111304" src="https://github.com/user-attachments/assets/39958b67-5e4b-4ff7-a774-a19d50cf364d" />
 
-**ICN_T2**는 요괴워치 2 (Yokai Watch 2) 게임 데이터를 편집하기 위한 모딩 툴입니다.  
-구버전 **Albatross** (v2.0)에서 프로젝트를 완전히 재구성하여, 더 빠르고 안정적이며 아름다운 툴로 발전했습니다.
+## 이전 버전 대비 변경점 (Latest)
 
----
+이번 버전은 기존 UI/편집 기능 정비를 넘어서, 도구 범위를 크게 확장했습니다.
 
-## 🚀 v2.0 → 현재: 무엇이 달라졌나?
+1. 신규 편집 도구 추가
+- Crank-a-kai(뽑기) 편집기 추가
+- 진화(Evolution) 편집기 추가
+- 합성(Fusion) 편집기 추가
+- 상점(Shop) 편집기 추가
+- 보물상자(Treasure Box) 편집기 추가
 
-### 🏗️ 프로젝트 구조 리브랜딩
+2. 뽑기 에디터 표시/매핑 개선
+- `hash_mapping_user.csv`를 프로그램 내부 리소스로 포함하여 기본 매핑을 항상 사용 가능하도록 변경
+- 외부 CSV가 있으면 외부 파일을 우선 적용하고, 없으면 내장 매핑으로 자동 fallback
+- CSV 파서를 분리(`HashMappingCsvParser`)하여 안정성 향상
+- 코인/보상명 표시를 해시 중심에서 이름 중심으로 개선
 
-| 구분 | v2.0 (Albatross) | 현재 (ICN_T2) |
-|:---|:---|:---|
-| 📁 프로젝트명 | Albatross | **ICN_T2** |
-| 🖥️ UI 프레임워크 | WinForms 중심 (혼합) | **WPF (Modern UI)** 전면 전환 |
-| 🧩 솔루션 구조 | `Albatross.sln` | `ICN_T2.sln` |
+3. 게임 데이터 모델 확장
+- Capsule, Combine, Treasure/Shop 관련 정의 및 로직 추가
+- YW2 게임 로직 인터페이스(`IGame`)와 구현(`YW2`) 확장
 
-단순한 이름 변경이 아닌, **프로젝트의 완전한 재탄생**입니다.
+4. 인카운터/맵 처리 보강
+- 인카운터 로드/저장 흐름과 맵 리스트 파싱 개선
+- 도구 전환 시 레이아웃/초기화 안정성 보강
 
----
+5. 배포/빌드 설정 강화
+- Release 기준 Single-file + Self-contained(`win-x64`) 설정
+- 배포 시 실행 파일 중심으로 관리하기 쉽게 정리
 
-### 🎨 UI/UX 현대화
+6. 리버스 엔지니어링 도구 추가
+- `ICN_T2/Tools/ReverseEngineering/`에 StreetPass/VIP 분석 스크립트군 추가
+- 내부 분석 및 검증 자동화용 파이썬/파워셸 도구 포함
 
-| 구분 | v2.0 | 현재 |
-|:---|:---|:---|
-| 🔤 폰트 | 사용자 PC에 폰트 설치 필요 | **앱 내 내장** (`GmarketSans`, `NexonLv2Gothic`, `ONEMobilePOP`) |
-| 🖼️ 테마 | 기본 시스템 스타일 | **커스텀 WPF 테마** (`PuniPuniTheme.xaml`) |
+## 설치 및 실행
 
-> 💡 폰트가 설치되어 있지 않아도 **어디서나 동일한 디자인**으로 실행됩니다.
+1. 릴리스 압축을 해제합니다.
+2. `ICN_T2.exe`, `Resources` 폴더, `sample` 폴더가 같은 경로에 있는지 확인합니다.
+3. `ICN_T2.exe`를 실행합니다.
 
----
+## 개발 빌드
 
-### 🧹 코드베이스 정리
-
-| 구분 | v2.0 | 현재 |
-|:---|:---|:---|
-| 💾 레거시 코드 | `Albatross` 구형 코드 혼재 | **제거됨** — 현재 코드만 유지 |
-| 📦 백업 파일 | `.bak` 파일 다수 | **`.gitignore`로 자동 제외** |
-| 🐘 대용량 파일 | `sample/*.fa` 등 포함 | **업로드 차단** |
-| ⚙️ IDE 설정 | `.cursor`, `.trae`, `.claude` 등 노출 | **`.gitignore`로 완전 차단** |
-
----
-
-## 🛠️ 빌드 환경
-
-- **Framework**: .NET 8.0 (Windows)
-- **UI**: WPF + WinForms (혼합)
-- **Target OS**: Windows 10 (10.0.22621.0) 이상
-
----
-
-## 📂 프로젝트 구조
-
+```powershell
+dotnet build .\ICN_T2\ICN_T2.csproj -c Release
 ```
+
+```powershell
+dotnet publish .\ICN_T2\ICN_T2.csproj -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true
+```
+
+## 프로젝트 구조
+
+```text
 ICN_T2/
-├── ICN_T2/
-│   ├── UI/
-│   │   └── WPF/              # WPF 기반 메인 UI
-│   │       ├── Views/        # XAML 뷰
-│   │       ├── ViewModels/   # ViewModel (MVVM)
-│   │       ├── Themes/       # 커스텀 테마
-│   │       └── Animations/   # 애니메이션 설정
-│   ├── YokaiWatch/           # 게임 데이터 파싱 로직
-│   ├── Logic/                # 핵심 비즈니스 로직
-│   ├── Tools/                # 유틸리티 도구
-│   └── Resources/
-│       └── Fonts/            # 내장 폰트
-└── README.md
+├─ ICN_T2/
+│  ├─ UI/WPF/                  # WPF UI (Views/ViewModels/Themes)
+│  ├─ YokaiWatch/              # 게임 데이터 정의/로직
+│  ├─ Logic/                   # 공통 파싱/처리 로직
+│  ├─ Resources/               # 리소스 및 해시 매핑 CSV
+│  └─ Tools/ReverseEngineering # 분석 스크립트
+└─ README.md
 ```
-
----
-
-## ✨ 주요 기능
-
-- 요괴 능력치 (HP, 공격, 방어, 속도 등) 편집
-- 기술 / 필살기 / 특성 편집
-- 대사 및 메달리움 데이터 편집
-- 인카운터 (출현 데이터) 편집
-- 커스텀 WPF UI로 쾌적한 편집 환경 제공
-
----
-
-*ICN_T2 — Albatross의 정신을 이어받아, 더 나은 모습으로.*
